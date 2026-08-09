@@ -12,12 +12,17 @@ import { ApiError, errorStatus, toApiErrorResponse } from "./http/apiError.js";
 import type { AppConfig } from "./config/appConfig.js";
 import { CompileService } from "./domain/compiler.js";
 import { discoverResumes } from "./domain/discovery.js";
+import {
+  createToolAvailabilityChecker,
+  type ToolAvailabilityChecker,
+} from "./process/checkToolAvailability.js";
 import type { CommandRunner } from "./process/runCommand.js";
 
 export interface AppDependencies {
   config: AppConfig;
   compiler?: CompileService;
   commandRunner?: CommandRunner;
+  checkToolAvailability?: ToolAvailabilityChecker;
   staticDir?: string;
 }
 
@@ -67,12 +72,21 @@ export function createApp(dependencies: AppDependencies): Express {
   const { config } = dependencies;
   const findResume = createFindResume(config);
   const compiler = createCompiler(dependencies);
+  const checkToolAvailability =
+    dependencies.checkToolAvailability ??
+    createToolAvailabilityChecker({
+      cwd: config.projectRoot,
+      ...(dependencies.commandRunner === undefined
+        ? {}
+        : { runner: dependencies.commandRunner }),
+    });
 
   app.use(express.json({ limit: "1mb" }));
   app.use(
     createHealthRouter({
       latexCommand: config.latexCommand,
       synctexCommand: config.synctexCommand,
+      checkToolAvailability,
     }),
   );
   app.use(

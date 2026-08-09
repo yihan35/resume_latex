@@ -25,6 +25,7 @@ export interface WorkspaceState {
   synctexRequestId: number;
   compileState: "idle" | "compiling" | "success" | "error";
   compileResult: CompileResult | null;
+  previewPdfPath: string | null;
   pdfVersion: number;
   targetLine: number | null;
   targetLineRequestId: number;

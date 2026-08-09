@@ -41,7 +41,7 @@ export function App() {
       ? state.selectedTexPath
       : (openFile?.path ?? state.selectedTexPath);
   const previewPdfPath =
-    state.compileResult?.pdfPath ?? selectedResume?.pdfPath ?? null;
+    state.previewPdfPath ?? selectedResume?.pdfPath ?? null;
   const buildStatus: BuildLogStatus =
     state.compileState === "compiling"
       ? "compiling"

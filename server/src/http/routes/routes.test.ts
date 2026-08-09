@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import request from "supertest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig } from "../../config/appConfig.js";
 import { createApp } from "../../app.js";
@@ -45,17 +45,24 @@ afterEach(async () => {
 });
 
 describe("HTTP routes", () => {
-  it("reports tool health", async () => {
+  it("reports injected tool availability and caches it for the application", async () => {
     const projectRoot = await root();
+    const checkToolAvailability = vi.fn(
+      async (command: string) => command === "xelatex",
+    );
+    const app = createApp({
+      config: config(projectRoot),
+      checkToolAvailability,
+    });
 
-    const response = await request(createApp({ config: config(projectRoot) }))
-      .get("/api/health")
-      .expect(200);
+    const response = await request(app).get("/api/health").expect(200);
+    await request(app).get("/api/health").expect(200, response.body);
 
     expect(response.body).toEqual({
       ok: true,
-      tools: { latex: expect.any(Boolean), synctex: expect.any(Boolean) },
+      tools: { latex: true, synctex: false },
     });
+    expect(checkToolAvailability).toHaveBeenCalledTimes(2);
   });
 
   it("uses public envelopes for malformed and oversized JSON", async () => {

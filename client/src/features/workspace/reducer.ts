@@ -13,6 +13,7 @@ export const initialWorkspaceState: WorkspaceState = {
   synctexRequestId: 0,
   compileState: "idle",
   compileResult: null,
+  previewPdfPath: null,
   pdfVersion: 0,
   targetLine: null,
   targetLineRequestId: 0,
@@ -50,6 +51,7 @@ export function workspaceReducer(
         synctexRequestId: action.synctexRequestId,
         compileState: "idle",
         compileResult: null,
+        previewPdfPath: null,
         targetLine: null,
         activityMessage: undefined,
         error: undefined,
@@ -190,6 +192,7 @@ export function workspaceReducer(
         return {
           ...state,
           compileState: "error",
+          compileResult: action.result,
           error: undefined,
           activityMessage: "Compile finished with errors.",
         };
@@ -198,6 +201,7 @@ export function workspaceReducer(
         ...state,
         compileState: "success",
         compileResult: action.result,
+        previewPdfPath: action.result.pdfPath,
         pdfVersion: state.pdfVersion + 1,
         activityMessage: "Compiled current resume.",
       };

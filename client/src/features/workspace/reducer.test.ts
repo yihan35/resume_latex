@@ -149,7 +149,7 @@ describe("workspaceReducer", () => {
     });
   });
 
-  it("ignores stale completions and preserves the prior preview after a failed compile", () => {
+  it("ignores stale completions and stores failed diagnostics without refreshing the prior preview", () => {
     let state = workspaceReducer(initialWorkspaceState, {
       type: "compileStarted",
       requestId: 2,
@@ -188,15 +188,23 @@ describe("workspaceReducer", () => {
         elapsedMs: 3,
         pdfPath: "bad.pdf",
         logSummary: "bad",
-        stdout: "",
-        stderr: "",
+        stdout: "failed stdout",
+        stderr: "failed stderr",
       },
     });
 
     expect(state).toMatchObject({
       compileState: "error",
       pdfVersion: 1,
-      compileResult: { pdfPath: "new.pdf" },
+      previewPdfPath: "new.pdf",
+      compileResult: {
+        ok: false,
+        elapsedMs: 3,
+        pdfPath: "bad.pdf",
+        logSummary: "bad",
+        stdout: "failed stdout",
+        stderr: "failed stderr",
+      },
     });
   });
 

@@ -32,11 +32,13 @@ vi.mock("./features/preview/PdfViewer", () => ({
   PdfViewer: ({
     pdfPath,
     onPdfClick,
+    version,
   }: {
     pdfPath: string | null;
     onPdfClick: (page: number, x: number, y: number) => void;
+    version: number;
   }) => (
-    <div aria-label="Mock PDF viewer">
+    <div aria-label="Mock PDF viewer" data-version={version}>
       <span>{pdfPath ?? "No PDF"}</span>
       <button onClick={() => onPdfClick(1, 72, 144)} type="button">
         Jump from PDF
@@ -197,6 +199,74 @@ describe("App workflow", () => {
       "/api/file?path=backend-engineer%2Fmain.tex",
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it("shows the latest failed compile diagnostics without refreshing the successful PDF preview", async () => {
+    let compileCount = 0;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = requestUrl(input);
+
+        if (url === "/api/project") {
+          return jsonResponse(projectFixture);
+        }
+
+        if (url.startsWith("/api/file?")) {
+          const path = new URLSearchParams(url.split("?")[1]).get("path") ?? "";
+          return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
+        }
+
+        if (url === "/api/compile") {
+          void init;
+          compileCount += 1;
+          return jsonResponse(
+            compileCount === 1
+              ? {
+                  ok: true,
+                  elapsedMs: 100,
+                  pdfPath: "backend-engineer/generated.pdf",
+                  logSummary: "first build succeeded",
+                  stdout: "successful stdout",
+                  stderr: "",
+                }
+              : {
+                  ok: false,
+                  elapsedMs: 200,
+                  pdfPath: "backend-engineer/failed.pdf",
+                  logSummary: "Undefined control sequence on line 12",
+                  stdout: "current failed stdout",
+                  stderr: "current failed stderr",
+                },
+          );
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByLabelText("LaTeX editor");
+    const compileButton = screen.getByRole("button", {
+      name: /编译当前简历/,
+    });
+    const pdfViewer = screen.getByLabelText("Mock PDF viewer");
+
+    fireEvent.click(compileButton);
+    await screen.findByText(/first build succeeded/);
+    expect(pdfViewer).toHaveTextContent("backend-engineer/generated.pdf");
+    expect(pdfViewer).toHaveAttribute("data-version", "1");
+
+    fireEvent.click(compileButton);
+    await screen.findByText(/Undefined control sequence on line 12/);
+
+    expect(screen.getByText("Failed")).toBeInTheDocument();
+    expect(screen.getByText(/current failed stdout/)).toBeInTheDocument();
+    expect(screen.getByText(/current failed stderr/)).toBeInTheDocument();
+    expect(screen.queryByText(/first build succeeded/)).not.toBeInTheDocument();
+    expect(pdfViewer).toHaveTextContent("backend-engineer/generated.pdf");
+    expect(pdfViewer).toHaveAttribute("data-version", "1");
   });
 
   it("jumps from a PDF click to the SyncTeX source file returned by the backend", async () => {

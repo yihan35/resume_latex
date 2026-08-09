@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { AppConfig } from "./config/appConfig.js";
 import { createApp } from "./app.js";
+import type { CommandRunner } from "./process/runCommand.js";
 
 const tempRoots: string[] = [];
 
@@ -46,6 +47,56 @@ afterEach(async () => {
 });
 
 describe("app", () => {
+  it("probes configured tools with bounded commands and hides probe output", async () => {
+    const root = await makeTempRoot();
+    const privateDiagnostic = path.join(root, "private-tool-output");
+    const calls: Array<{
+      command: string;
+      args: readonly string[];
+      options: { cwd: string; timeoutMs?: number; maxOutputBytes?: number };
+    }> = [];
+    const commandRunner: CommandRunner = async (command, args, options) => {
+      calls.push({ command, args, options });
+      return command === "xelatex"
+        ? {
+            code: 0,
+            stdout: `XeTeX at ${privateDiagnostic}`,
+            stderr: "",
+            timedOut: false,
+          }
+        : {
+            code: 127,
+            stdout: "",
+            stderr: `spawn ${privateDiagnostic} ENOENT`,
+            timedOut: false,
+          };
+    };
+
+    const response = await request(
+      createApp({ config: config(root), commandRunner }),
+    )
+      .get("/api/health")
+      .expect(200);
+
+    expect(response.body).toEqual({
+      ok: true,
+      tools: { latex: true, synctex: false },
+    });
+    expect(JSON.stringify(response.body)).not.toContain(privateDiagnostic);
+    expect(calls).toEqual([
+      {
+        command: "xelatex",
+        args: ["--version"],
+        options: { cwd: root, timeoutMs: 2_000, maxOutputBytes: 1_024 },
+      },
+      {
+        command: "synctex",
+        args: ["--version"],
+        options: { cwd: root, timeoutMs: 2_000, maxOutputBytes: 1_024 },
+      },
+    ]);
+  });
+
   it("returns discovered resumes and tex files", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "resume_common.tex", "% common\n");
