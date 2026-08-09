@@ -157,6 +157,89 @@ describe("app compile routes", () => {
     expect(sourceDuringCompile).toBe("% first\n");
   });
 
+  it("rejects a cross-resume current file without bypassing the active resume lock", async () => {
+    const root = await makeTempRoot();
+    await writeProjectFile(root, "alpha/resume.tex", "% alpha\n");
+    await writeProjectFile(
+      root,
+      "alpha/sections/experience.tex",
+      "% original include\n",
+    );
+    await writeProjectFile(root, "beta/resume.tex", "% beta\n");
+    let releaseAlpha: (() => void) | undefined;
+    let markAlphaStarted: (() => void) | undefined;
+    const alphaGate = new Promise<void>((resolve) => {
+      releaseAlpha = resolve;
+    });
+    const alphaStarted = new Promise<void>((resolve) => {
+      markAlphaStarted = resolve;
+    });
+    const runner: CommandRunner = async (_command, _args, options) => {
+      if (path.basename(options.cwd) === "alpha") {
+        markAlphaStarted?.();
+        await alphaGate;
+      }
+      await writeFile(path.join(options.cwd, "resume.pdf"), "%PDF-1.7\n");
+      return { code: 0, stdout: "", stderr: "", timedOut: false };
+    };
+    const app = createApp({ projectRoot: root, commandRunner: runner });
+
+    const alphaRequest = request(app)
+      .post("/api/compile")
+      .send({ resumeDir: "alpha" })
+      .expect(200)
+      .then((response) => response);
+    await alphaStarted;
+
+    const betaResponse = await request(app)
+      .post("/api/compile")
+      .send({
+        resumeDir: "beta",
+        currentFile: {
+          path: "alpha/sections/experience.tex",
+          content: "% cross-resume overwrite\n",
+        },
+      });
+    const alphaSource = await readFile(
+      path.join(root, "alpha/sections/experience.tex"),
+      "utf8",
+    );
+    releaseAlpha?.();
+    await alphaRequest;
+
+    expect(betaResponse.status).toBe(400);
+    expect(alphaSource).toBe("% original include\n");
+  });
+
+  it("saves a discovered nested TeX include for its owning resume", async () => {
+    const root = await makeTempRoot();
+    await writeProjectFile(root, "candidate/resume.tex", "% resume\n");
+    await writeProjectFile(
+      root,
+      "candidate/sections/experience.tex",
+      "% before\n",
+    );
+    const runner: CommandRunner = async (_command, _args, options) => {
+      await writeFile(path.join(options.cwd, "resume.pdf"), "%PDF-1.7\n");
+      return { code: 0, stdout: "", stderr: "", timedOut: false };
+    };
+
+    await request(createApp({ projectRoot: root, commandRunner: runner }))
+      .post("/api/compile")
+      .send({
+        resumeDir: "candidate",
+        currentFile: {
+          path: "candidate/sections/experience.tex",
+          content: "% after\n",
+        },
+      })
+      .expect(200);
+
+    await expect(
+      readFile(path.join(root, "candidate/sections/experience.tex"), "utf8"),
+    ).resolves.toBe("% after\n");
+  });
+
   it("redacts absolute paths from compile logs", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "多模态/简历.tex", "% resume\n");

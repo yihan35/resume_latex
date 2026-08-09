@@ -2,10 +2,14 @@ import express, { type ErrorRequestHandler, type Express } from "express";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
+import type { ResumeInfo } from "../../shared/contracts.js";
 import { CompileService } from "./domain/compiler.js";
 import { discoverResumes, discoverTexFiles } from "./domain/discovery.js";
 import { readTexFile, saveTexFileAtomically } from "./domain/fileStore.js";
-import { resolveProjectPath } from "./domain/pathSafety.js";
+import {
+  resolveProjectPath,
+  resolveProjectTexPath,
+} from "./domain/pathSafety.js";
 import { lookupSynctex } from "./domain/synctex.js";
 import type { CommandRunner } from "./process/runCommand.js";
 
@@ -18,6 +22,55 @@ interface AppOptions {
 }
 
 const defaultEntryFiles = ["resume.tex", "main.tex", "简历.tex"];
+
+function isPathInsideDirectory(directory: string, filePath: string): boolean {
+  const relativePath = path.relative(directory, filePath);
+  return (
+    relativePath !== ".." &&
+    !relativePath.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativePath)
+  );
+}
+
+async function assertCurrentFileInResumeScope(options: {
+  projectRoot: string;
+  currentFilePath: string;
+  selectedResume: ResumeInfo;
+  resumes: readonly ResumeInfo[];
+}): Promise<void> {
+  const currentFile = resolveProjectTexPath(
+    options.projectRoot,
+    options.currentFilePath,
+  );
+  const texFiles = await discoverTexFiles(options.projectRoot);
+  const discoveredFiles = new Set(
+    texFiles.map((file) =>
+      resolveProjectTexPath(options.projectRoot, file.path),
+    ),
+  );
+
+  if (!discoveredFiles.has(currentFile)) {
+    throw new Error("Current file is not a discovered TeX file");
+  }
+
+  const owningResume = options.resumes
+    .filter((resume) =>
+      isPathInsideDirectory(
+        path.dirname(
+          resolveProjectTexPath(options.projectRoot, resume.entryPath),
+        ),
+        currentFile,
+      ),
+    )
+    .sort((left, right) => right.dir.length - left.dir.length)[0];
+
+  if (
+    owningResume !== undefined &&
+    owningResume.id !== options.selectedResume.id
+  ) {
+    throw new Error("Current file does not belong to the selected resume");
+  }
+}
 
 interface HttpErrorBody {
   status: number;
@@ -263,16 +316,29 @@ export function createApp(options: AppOptions): Express {
       response.status(400).json({ error: "Invalid compile body" });
       return;
     }
+    const body = request.body;
 
     try {
-      if (request.body.currentFile !== undefined) {
-        resolveProjectPath(options.projectRoot, request.body.currentFile.path);
+      if (body.currentFile !== undefined) {
+        resolveProjectPath(options.projectRoot, body.currentFile.path);
       }
-      const resume = await findResume(request.body.resumeDir);
+      const resumes = await discoverResumes(options.projectRoot, entryFiles);
+      const resume = resumes.find(
+        (candidate) => candidate.dir === body.resumeDir,
+      );
       if (resume === undefined) {
+        resolveProjectPath(options.projectRoot, body.resumeDir);
         throw new Error("Resume not found");
       }
-      const currentFile = request.body.currentFile;
+      const currentFile = body.currentFile;
+      if (currentFile !== undefined) {
+        await assertCurrentFileInResumeScope({
+          projectRoot: options.projectRoot,
+          currentFilePath: currentFile.path,
+          selectedResume: resume,
+          resumes,
+        });
+      }
       const result = await compiler.compile(
         resume,
         currentFile === undefined
