@@ -1,1 +1,33 @@
-.worktrees/
+# Dependencies
+node_modules/
+
+# Build and coverage
+dist/
+dist-server/
+coverage/
+*.tsbuildinfo
+
+# Runtime state
+.resume-editor/
+*.pid
+*.log
+
+# Local environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# LaTeX generated files
+*.aux
+*.fls
+*.fdb_latexmk
+*.out
+*.synctex.gz
+*.toc
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
