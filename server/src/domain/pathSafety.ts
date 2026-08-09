@@ -124,5 +124,15 @@ export function resolveProjectTexPath(
     throw new Error("Only .tex files can be edited");
   }
 
+  try {
+    if (lstatSync(absolutePath).isSymbolicLink()) {
+      throw new Error("Only .tex files can be edited");
+    }
+  } catch (error) {
+    if (!isMissingFileError(error)) {
+      throw error;
+    }
+  }
+
   return absolutePath;
 }

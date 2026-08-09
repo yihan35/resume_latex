@@ -80,6 +80,18 @@ describe("path safety", () => {
     );
   });
 
+  it("rejects a tex-named symlink to a non-tex file inside the root", () => {
+    const root = makeTempRoot("resume-path-");
+    const target = path.join(root, ".env");
+
+    writeFileSync(target, "SECRET=value");
+    symlinkSync(target, path.join(root, "resume.tex"), "file");
+
+    expect(() => resolveProjectTexPath(root, "resume.tex")).toThrow(
+      "Only .tex files can be edited",
+    );
+  });
+
   it("resolves generic project paths without requiring a tex extension", () => {
     const root = makeTempRoot("resume-path-");
 
