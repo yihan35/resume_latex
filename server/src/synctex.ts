@@ -1,7 +1,10 @@
 import path from "node:path";
 
 import type { CommandRunner } from "./compiler.js";
-import { normalizeRelativePath, resolveProjectPath } from "./pathSafety.js";
+import {
+  normalizeRelativePath,
+  resolveProjectPath,
+} from "./domain/pathSafety.js";
 import { runCommand } from "./processRunner.js";
 
 const LEGACY_MAIN_PDF = "简历.pdf";

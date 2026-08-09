@@ -4,8 +4,8 @@ import path from "node:path";
 
 import { compileResume, type CommandRunner } from "./compiler.js";
 import { discoverResumes, discoverTexFiles } from "./domain/discovery.js";
-import { readTexFile, saveTexFile } from "./fileStore.js";
-import { resolveProjectPath } from "./pathSafety.js";
+import { readTexFile, saveTexFileAtomically } from "./domain/fileStore.js";
+import { resolveProjectPath } from "./domain/pathSafety.js";
 import { lookupSynctex } from "./synctex.js";
 
 interface AppOptions {
@@ -228,7 +228,7 @@ export function createApp(options: AppOptions): Express {
     }
 
     try {
-      await saveTexFile(
+      await saveTexFileAtomically(
         options.projectRoot,
         request.body.path,
         request.body.content,
@@ -248,7 +248,7 @@ export function createApp(options: AppOptions): Express {
 
     try {
       if (request.body.currentFile !== undefined) {
-        await saveTexFile(
+        await saveTexFileAtomically(
           options.projectRoot,
           request.body.currentFile.path,
           request.body.currentFile.content,

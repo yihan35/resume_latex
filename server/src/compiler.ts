@@ -1,7 +1,10 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 
-import { normalizeRelativePath, resolveProjectPath } from "./pathSafety.js";
+import {
+  normalizeRelativePath,
+  resolveProjectPath,
+} from "./domain/pathSafety.js";
 import { runCommand } from "./processRunner.js";
 
 const LEGACY_MAIN_TEX = "简历.tex";
