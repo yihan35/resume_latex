@@ -10,6 +10,7 @@ import { renderFirstPdfPage, type RenderedPdfPage } from "./pdfRenderer";
 
 interface PdfViewerProps {
   pdfPath: string | null;
+  resumeId: string | null;
   version: number;
   onPdfClick: (page: number, x: number, y: number) => void;
 }
@@ -22,7 +23,12 @@ function errorMessage(error: unknown) {
     : "PDF is not available. Compile the resume to generate it.";
 }
 
-export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
+export function PdfViewer({
+  pdfPath,
+  resumeId,
+  version,
+  onPdfClick,
+}: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderedPageRef = useRef<RenderedPdfPage | null>(null);
@@ -34,7 +40,7 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (container === null || pdfPath === null) {
+    if (container === null || pdfPath === null || resumeId === null) {
       setContainerWidth(0);
       return;
     }
@@ -51,10 +57,10 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     );
     observer.observe(container);
     return () => observer.disconnect();
-  }, [pdfPath]);
+  }, [pdfPath, resumeId]);
 
   useEffect(() => {
-    if (pdfPath === null) {
+    if (pdfPath === null || resumeId === null) {
       renderedPageRef.current = null;
       return;
     }
@@ -64,7 +70,7 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     const width = Math.max(260, containerWidth || container.clientWidth);
     const controller = new AbortController();
     renderedPageRef.current = null;
-    const query = new URLSearchParams({ path: pdfPath, v: String(version) });
+    const query = new URLSearchParams({ resumeId, v: String(version) });
     queueMicrotask(() => {
       if (controller.signal.aborted) return;
       setState("loading");
@@ -97,7 +103,7 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
       renderedPageRef.current = null;
       if (renderedPage !== null) void renderedPage.destroy();
     };
-  }, [containerWidth, pdfPath, version]);
+  }, [containerWidth, pdfPath, resumeId, version]);
 
   function handleCanvasClick(event: MouseEvent<HTMLCanvasElement>) {
     const metrics = renderedPageRef.current;
@@ -110,7 +116,7 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     onPdfClick(1, viewportX / metrics.scale, viewportY / metrics.scale);
   }
 
-  if (pdfPath === null)
+  if (pdfPath === null || resumeId === null)
     return (
       <div className="pdf-empty" aria-live="polite">
         Select a resume to preview its PDF.

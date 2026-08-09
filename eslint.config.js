@@ -27,6 +27,14 @@ export default tseslint.config(
     },
   },
   {
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    files: ["scripts/**/*.test.ts"],
+    ...tseslint.configs.disableTypeChecked,
+  },
+  {
     files: ["client/**/*.{ts,tsx}"],
     languageOptions: { globals: globals.browser },
     plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },

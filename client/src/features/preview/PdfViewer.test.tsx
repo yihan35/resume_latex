@@ -39,7 +39,12 @@ describe("PdfViewer", () => {
     const onPdfClick = vi.fn();
 
     render(
-      <PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={onPdfClick} />,
+      <PdfViewer
+        onPdfClick={onPdfClick}
+        pdfPath="resume.pdf"
+        resumeId="sample"
+        version={1}
+      />,
     );
 
     const canvas = await screen.findByLabelText("PDF page 1");
@@ -48,7 +53,7 @@ describe("PdfViewer", () => {
 
     expect(onPdfClick).toHaveBeenCalledWith(1, 100, 200);
     expect(renderFirstPdfPageMock).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "/api/pdf?path=resume.pdf&v=1" }),
+      expect.objectContaining({ url: "/api/pdf?resumeId=sample&v=1" }),
     );
   });
 });

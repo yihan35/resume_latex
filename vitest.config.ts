@@ -9,7 +9,11 @@ export default defineConfig({
     fileParallelism: false,
     passWithNoTests: true,
     setupFiles: "./client/src/testSetup.ts",
-    include: ["server/src/**/*.test.ts", "client/src/**/*.test.{ts,tsx}"],
+    include: [
+      "server/src/**/*.test.ts",
+      "client/src/**/*.test.{ts,tsx}",
+      "scripts/**/*.test.ts",
+    ],
     coverage: {
       provider: "v8",
     },

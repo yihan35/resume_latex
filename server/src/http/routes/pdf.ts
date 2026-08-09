@@ -41,9 +41,13 @@ export function createPdfRouter(options: {
       const pdfPath = resolveProjectPath(options.projectRoot, resume.pdfPath);
       await access(pdfPath);
       response.type("application/pdf");
-      response.sendFile(pdfPath, (error) => {
-        if (error !== undefined) next(pdfError(error));
-      });
+      response.sendFile(
+        resume.pdfPath,
+        { root: options.projectRoot, dotfiles: "deny" },
+        (error) => {
+          if (error !== undefined) next(pdfError(error));
+        },
+      );
     } catch (error) {
       throw pdfError(error);
     }

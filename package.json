@@ -30,8 +30,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "privacy:check": "node scripts/privacy-check.mjs",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc --noEmit",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run build"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test:coverage && npm run privacy:check && npm run build"
   },
   "dependencies": {
     "@monaco-editor/react": "4.7.0",

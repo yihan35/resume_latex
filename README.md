@@ -1,100 +1,187 @@
 # Resume LaTeX Editor
 
-本项目是一个本地使用的 LaTeX 简历编辑器：左侧选择 `.tex` 文件，中间编辑源码，右侧预览编译后的 PDF，并支持从 PDF 定位回源码。
+[简体中文](README.zh-CN.md)
 
-## 环境要求
+A local, privacy-first workspace for editing LaTeX resumes. It keeps source
+files on your machine, discovers resumes only inside a configured trusted root,
+and combines a file tree, Monaco editor, PDF preview, build output, and SyncTeX
+navigation in one focused interface.
 
-- Node.js 18 或更高版本
-- npm
-- macOS 上建议安装 MacTeX，并确保 `xelatex` 可用。项目启动脚本会通过现有 npm 脚本把 `/Library/TeX/texbin` 加入服务端进程的 `PATH`
+> This application binds to loopback and has no authentication. Keep it local
+> and open only trusted LaTeX projects.
 
-首次使用先安装依赖：
+## Workflow
+
+### Load the fictional sample
+
+![Loaded fictional sample with the file tree, TeX editor, and PDF preview](docs/assets/app-overview.png)
+
+The default project opens `examples/sample/resume.tex` without requiring any
+personal data.
+
+### Edit and save explicitly
+
+![A fictional summary edit with the Save control showing an unsaved draft](docs/assets/editing-workflow.png)
+
+Drafts stay in the editor until you choose **Save**. Compiling first saves the
+current dirty draft.
+
+### Compile and jump from PDF to source
+
+![A successful fictional build with PDF preview, build output, and a SyncTeX source jump](docs/assets/compile-synctex.png)
+
+Compile with XeLaTeX, then click the rendered PDF to jump to the corresponding
+source line through SyncTeX.
+
+## Features
+
+- Discovers resume entry files and `.tex` sources under one trusted root.
+- Edits with Monaco, adjustable font size, explicit save, and dirty-draft
+  protection.
+- Compiles the selected resume with XeLaTeX and shows sanitized build output.
+- Renders a responsive, high-density preview of the first PDF page.
+- Maps PDF clicks back to source through SyncTeX.
+- Confines file access, validates requests, limits process output, and reports
+  stable public errors without exposing local absolute paths.
+- Includes a fictional sample, automated privacy scanning, tests, and a
+  production build.
+
+## Prerequisites
+
+- Node.js `22.13.0` or newer (Node 22 and 24 are tested) and npm.
+- XeLaTeX and SyncTeX available on `PATH`.
+  - macOS: install MacTeX or BasicTeX and ensure `/Library/TeX/texbin` is on
+    `PATH`.
+  - Linux: install a TeX Live distribution with XeLaTeX, SyncTeX, and the LaTeX
+    packages used by your resume.
+  - Windows: install MiKTeX or TeX Live, enable package installation as needed,
+    and add its binaries to `PATH`.
+
+## Quick start with the sample
 
 ```sh
-npm install
+git clone git@github.com:yihan35/resume_latex.git
+cd resume_latex
+npm ci
+npm run dev
 ```
 
-## 启动
+Open `http://127.0.0.1:5173`. The API runs at
+`http://127.0.0.1:43871`, and the fictional sample loads automatically.
 
-在项目目录运行：
+For a production build:
 
 ```sh
-./scripts/start.sh
+npm run build
+npm start
 ```
 
-启动成功后打开：
+Then open `http://127.0.0.1:43871`.
+
+## Configuration
+
+The server reads process environment variables and an optional ignored
+`.env.local` file at startup. Copy `.env.example` to `.env.local`, or set the
+same values in your shell.
+
+| Setting                     | Default                        | Purpose                                       |
+| --------------------------- | ------------------------------ | --------------------------------------------- |
+| `RESUME_PROJECT_ROOT`       | `./examples`                   | Trusted root containing resume directories    |
+| `RESUME_ENTRY_FILES`        | `resume.tex,main.tex,简历.tex` | Comma-separated entry-file discovery priority |
+| `RESUME_EDITOR_PORT`        | `43871`                        | Production and API server port                |
+| `RESUME_EDITOR_CLIENT_PORT` | `5173`                         | Vite development server port                  |
+| `RESUME_LATEX_COMMAND`      | `xelatex`                      | XeLaTeX executable name or absolute path      |
+| `RESUME_SYNCTEX_COMMAND`    | `synctex`                      | SyncTeX executable name or absolute path      |
+
+Relative project roots resolve from the repository directory. Invalid ports,
+missing roots, non-directory roots, and empty entry-file lists stop startup with
+a concise error.
+
+## Development
+
+```sh
+npm run dev             # API and Vite development servers
+npm run typecheck       # server and client TypeScript checks
+npm test                # complete Vitest suite
+npm run test:coverage   # tests with V8 coverage
+npm run format:check    # Prettier verification
+npm run lint            # ESLint verification
+npm run privacy:check   # tracked and intended-untracked public files
+npm run check           # all release-gating checks and production build
+npm run build           # server and client production bundles
+npm start               # serve the built app on the API port
+```
+
+Run one test file while iterating:
+
+```sh
+npx vitest run scripts/privacy-check.test.ts
+```
+
+## Architecture
 
 ```text
-http://127.0.0.1:5173
+client/src/
+  app/                  application shell and error boundary
+  components/           file, editor, preview, and build panes
+  features/editor/      Monaco integration
+  features/preview/     PDF.js first-page renderer
+  features/workspace/   reducer, selectors, and async orchestration
+  lib/                   typed API client
+server/src/
+  config/                environment parsing and validation
+  domain/                discovery, file safety, compile, and SyncTeX
+  http/                  Express routes, validation, and public errors
+  process/               bounded child-process execution
+shared/                  client/server HTTP contracts
+examples/sample/         fictional default resume
+scripts/                 privacy automation
 ```
 
-脚本会在后台启动两个进程：
+The browser calls typed Express routes. Server routes resolve identifiers
+against current discovery results, domain services enforce the trusted root,
+and configured local executables perform compilation and SyncTeX lookup.
 
-- API server: `http://127.0.0.1:43871`
-- Vite client: `http://127.0.0.1:5173`
+## Security model
 
-运行状态和日志保存在 `.resume-editor/`：
+- The server listens on `127.0.0.1` only and deliberately provides no auth.
+- `RESUME_PROJECT_ROOT` is a trusted boundary; do not load untrusted TeX.
+- File operations accept safe relative `.tex` paths and reject escapes,
+  symlink substitutions, malformed requests, and oversized bodies.
+- Compile, PDF, and SyncTeX requests use discovered resume identifiers instead
+  of client-supplied commands or absolute paths.
+- Compiler output and public errors are bounded and sanitized before reaching
+  the browser.
 
-```text
-.resume-editor/client.pid
-.resume-editor/server.pid
-.resume-editor/logs/client.log
-.resume-editor/logs/server.log
-```
+This is defense in depth for a single-user local tool, not a sandbox for hostile
+documents. See [SECURITY.md](SECURITY.md) for reporting and supported versions.
 
-## 关闭
+## Current limitation
 
-在项目目录运行：
+The preview intentionally renders only page 1, and PDF-to-source lookup sends
+page 1 coordinates. Multi-page navigation is not yet implemented.
 
-```sh
-./scripts/stop.sh
-```
+## Troubleshooting
 
-脚本只会停止由 `./scripts/start.sh` 记录的进程，不会按端口强行杀掉其它程序。
+- **No resume appears:** confirm the trusted root exists and contains a
+  subdirectory with one configured entry filename.
+- **XeLaTeX or SyncTeX is unavailable:** run `xelatex --version` and
+  `synctex --version`, or set the corresponding command variable.
+- **A TeX package is missing:** install it through your TeX distribution, then
+  compile again.
+- **A port is occupied:** change `RESUME_EDITOR_PORT` or
+  `RESUME_EDITOR_CLIENT_PORT` before startup.
+- **The PDF is absent or stale:** save, compile, and inspect the Build pane.
+  Compilation uses `-synctex=1` so source lookup depends on a successful build.
+- **The production page does not load:** run `npm run build` before `npm start`.
 
-## 常用命令
+## Project governance
 
-```sh
-npm run start:editor   # 等同于 ./scripts/start.sh
-npm run stop:editor    # 等同于 ./scripts/stop.sh
-npm run editor         # 前台同时启动 server 和 client，适合调试
-npm test               # 运行测试
-npm run typecheck      # TypeScript 类型检查
-npm run build          # 生产构建
-```
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), the
+[Code of Conduct](CODE_OF_CONDUCT.md), [Security Policy](SECURITY.md), and
+[Changelog](CHANGELOG.md).
 
-## 可选配置
+## License
 
-默认情况下，服务端会把当前项目的上一级目录作为简历项目根目录。也可以手动指定：
-
-```sh
-RESUME_PROJECT_ROOT=/path/to/resume ./scripts/start.sh
-```
-
-如需避开默认端口：
-
-```sh
-RESUME_EDITOR_PORT=44871 RESUME_EDITOR_CLIENT_PORT=5273 ./scripts/start.sh
-```
-
-关闭时如果使用了自定义状态目录，需要传入同一个值：
-
-```sh
-RESUME_EDITOR_STATE_DIR=/tmp/resume-editor ./scripts/stop.sh
-```
-
-## 排查
-
-查看日志：
-
-```sh
-tail -f .resume-editor/logs/server.log
-tail -f .resume-editor/logs/client.log
-```
-
-如果启动提示端口已被占用，先确认占用进程：
-
-```sh
-lsof -nP -iTCP:5173 -sTCP:LISTEN
-lsof -nP -iTCP:43871 -sTCP:LISTEN
-```
+Released under the [MIT License](LICENSE). Built with React, Monaco Editor,
+PDF.js, Express, Vite, and the local TeX toolchain.

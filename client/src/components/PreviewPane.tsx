@@ -9,6 +9,7 @@ interface PreviewPaneProps {
   buildResult: CompileResult | null;
   buildStatus: BuildLogStatus;
   pdfPath: string | null;
+  resumeId: string | null;
   pdfVersion: number;
   onPdfClick: (page: number, x: number, y: number) => void;
 }
@@ -19,6 +20,7 @@ export function PreviewPane({
   buildResult,
   buildStatus,
   pdfPath,
+  resumeId,
   pdfVersion,
   onPdfClick,
 }: PreviewPaneProps) {
@@ -32,6 +34,7 @@ export function PreviewPane({
         <PdfViewer
           onPdfClick={onPdfClick}
           pdfPath={pdfPath}
+          resumeId={resumeId}
           version={pdfVersion}
         />
         {activityMessage === undefined ? null : (

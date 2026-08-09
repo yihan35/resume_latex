@@ -112,6 +112,7 @@ export function App() {
           onPdfClick={(page, x, y) => void workspace.lookupSource(page, x, y)}
           pdfPath={previewPdfPath}
           pdfVersion={state.pdfVersion}
+          resumeId={selectedResume?.id ?? null}
         />
       </section>
     </main>

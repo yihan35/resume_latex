@@ -102,6 +102,25 @@ describe("app compile routes", () => {
     expect(Buffer.from(pdf.body).toString("utf8")).toBe("%PDF-old\n");
   });
 
+  it("serves a discovered PDF when the trusted root is below a hidden directory", async () => {
+    const tempRoot = await root();
+    const projectRoot = path.join(
+      tempRoot,
+      ".worktrees",
+      "release",
+      "examples",
+    );
+    await write(projectRoot, "candidate/resume.tex", "% resume\n");
+    await write(projectRoot, "candidate/resume.pdf", "%PDF-hidden-root\n");
+
+    const pdf = await request(createApp({ config: config(projectRoot) }))
+      .get("/api/pdf")
+      .query({ resumeId: "candidate" })
+      .expect(200);
+
+    expect(Buffer.from(pdf.body).toString("utf8")).toBe("%PDF-hidden-root\n");
+  });
+
   it("does not expose an arbitrary PDF path", async () => {
     const projectRoot = await root();
     await write(projectRoot, "candidate/resume.tex", "% resume\n");
