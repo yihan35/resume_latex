@@ -5,7 +5,11 @@ node_modules/
 dist/
 dist-server/
 coverage/
+.vite/
 *.tsbuildinfo
+
+# Local worktrees
+.worktrees/
 
 # Runtime state
 .resume-editor/
