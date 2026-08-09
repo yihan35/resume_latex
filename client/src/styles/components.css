@@ -262,6 +262,13 @@
   color: #475569;
   font-size: 12px;
 }
+.build-log {
+  min-height: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
 .status-pill {
   flex: 0 0 auto;
   padding: 3px 8px;
