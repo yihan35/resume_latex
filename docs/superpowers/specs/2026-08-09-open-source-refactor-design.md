@@ -318,7 +318,7 @@ The quality commands are:
 
 The public repository contains:
 
-- `README.md`: English overview, screenshot, features, prerequisites, quick
+- `README.md`: English overview, screenshots, features, prerequisites, quick
   start, configuration, architecture, development, security model,
   troubleshooting, limitations, and acknowledgements.
 - `README.zh-CN.md`: equivalent Chinese guide.
@@ -333,8 +333,15 @@ The public repository contains:
 - `.github/workflows/ci.yml`: Node 22 and 24 quality matrix.
 - `.github/dependabot.yml`: monthly npm and GitHub Actions updates.
 
-README screenshots are created from the fictional sample only and inspected for
-personal information before commit.
+Both README files embed three matching images created from the fictional sample:
+
+- `docs/assets/app-overview.png`: application overview.
+- `docs/assets/editing-workflow.png`: edit, dirty-state, and save workflow.
+- `docs/assets/compile-synctex.png`: compile, PDF preview, build output, and
+  SyncTeX workflow.
+
+Each image is inspected at full resolution for personal information, local
+paths, browser chrome, notifications, and private document content before commit.
 
 ## Continuous Integration
 
@@ -390,6 +397,6 @@ The refactor is complete only when all of the following are true:
 - The main client chunk no longer triggers Vite's 500 kB size warning.
 - Release checks and the GitHub Actions workflow pass.
 - `npm audit` reports no high or critical vulnerability.
-- English and Chinese README files, license, contribution guide, security policy,
+- English and Chinese README files with the three workflow images, license, contribution guide, security policy,
   changelog, code of conduct, CI, and Dependabot configuration are present.
 - The remote `main` commit equals the locally verified release commit.
