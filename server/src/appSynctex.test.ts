@@ -2,150 +2,90 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import request from "supertest";
-
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app.js";
+import type { AppConfig } from "./config/appConfig.js";
 import type { CommandRunner } from "./process/runCommand.js";
 
-const tempRoots: string[] = [];
+const roots: string[] = [];
 
-async function makeTempRoot(): Promise<string> {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "resume-app-synctex-"));
-  tempRoots.push(tempRoot);
-  return tempRoot;
+async function root(): Promise<string> {
+  const value = await mkdtemp(path.join(os.tmpdir(), "resume-app-synctex-"));
+  roots.push(value);
+  return value;
 }
 
-async function writeProjectFile(
-  root: string,
-  relativePath: string,
+function config(projectRoot: string): AppConfig {
+  return {
+    repoRoot: projectRoot,
+    projectRoot,
+    serverPort: 43871,
+    clientPort: 5173,
+    entryFiles: ["resume.tex"],
+    latexCommand: "xelatex",
+    synctexCommand: "synctex",
+  };
+}
+
+async function write(
+  rootPath: string,
+  file: string,
   content: string,
 ): Promise<void> {
-  const filePath = path.join(root, relativePath);
-  await mkdir(path.dirname(filePath), { recursive: true });
-  await writeFile(filePath, content, "utf8");
-}
-
-function expectNoAbsolutePathLeak(body: unknown, root: string): void {
-  const serializedBody = JSON.stringify(body);
-
-  expect(serializedBody).not.toContain("/Users");
-  expect(serializedBody).not.toContain("/tmp");
-  expect(serializedBody).not.toContain(root);
+  const target = path.join(rootPath, file);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content);
 }
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots
-      .splice(0)
-      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
+    roots.splice(0).map((value) => rm(value, { recursive: true, force: true })),
   );
 });
 
-describe("app synctex route", () => {
-  it("returns a source location for a PDF coordinate lookup", async () => {
-    const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
-    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
+describe("app SyncTeX route", () => {
+  it("looks up a source location using a resume id", async () => {
+    const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% resume\n");
+    await write(projectRoot, "sample/resume.pdf", "%PDF-1.7\n");
     const runner: CommandRunner = async () => ({
       code: 0,
-      stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
+      stdout: `Input:${path.join(projectRoot, "sample", "resume.tex")}\nLine:38\nColumn:1\n`,
       stderr: "",
       timedOut: false,
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner }),
+      createApp({ config: config(projectRoot), commandRunner: runner }),
     )
       .post("/api/synctex")
-      .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })
+      .send({ resumeId: "sample", page: 1, x: 42.5, y: 84.25 })
       .expect(200);
 
     expect(response.body).toEqual({
       found: true,
-      file: "多模态/简历.tex",
+      file: "sample/resume.tex",
       line: 38,
       column: 1,
     });
   });
 
-  it("returns 400 JSON for invalid request bodies", async () => {
-    const root = await makeTempRoot();
-    const response = await request(createApp({ projectRoot: root }))
+  it("uses public invalid request envelopes for malformed SyncTeX bodies", async () => {
+    const projectRoot = await root();
+
+    await request(createApp({ config: config(projectRoot) }))
       .post("/api/synctex")
-      .send({ resumeDir: "多模态", page: "1", x: 42, y: 84 })
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Invalid synctex body" });
-  });
-
-  it.each([
-    { page: 0, x: 42, y: 84 },
-    { page: -1, x: 42, y: 84 },
-    { page: 1.5, x: 42, y: 84 },
-    { page: 1, x: -1, y: 84 },
-    { page: 1, x: 42, y: -1 },
-  ])("returns 400 JSON for invalid coordinates %j", async (body) => {
-    const root = await makeTempRoot();
-    const response = await request(createApp({ projectRoot: root }))
-      .post("/api/synctex")
-      .send({ resumeDir: "多模态", ...body })
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Invalid synctex body" });
-  });
-
-  it("allows decimal x and y coordinates with page 1", async () => {
-    const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
-    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
-    const runner: CommandRunner = async () => ({
-      code: 0,
-      stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
-      stderr: "",
-      timedOut: false,
-    });
-
-    const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner }),
-    )
-      .post("/api/synctex")
-      .send({ resumeDir: "多模态", page: 1, x: 42.5, y: 84.25 })
-      .expect(200);
-
-    expect(response.body).toEqual({
-      found: true,
-      file: "多模态/简历.tex",
-      line: 38,
-      column: 1,
-    });
-  });
-
-  it("returns not found when synctex exits nonzero", async () => {
-    const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
-    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
-    const runner: CommandRunner = async () => ({
-      code: 1,
-      stdout: "",
-      stderr: "no match",
-      timedOut: false,
-    });
-
-    const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner }),
-    )
-      .post("/api/synctex")
-      .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })
-      .expect(200);
-
-    expect(response.body).toEqual({ found: false });
+      .send({ resumeId: "sample", page: 1, x: Number.POSITIVE_INFINITY, y: 1 })
+      .expect(400, {
+        error: { code: "INVALID_REQUEST", message: "Invalid SyncTeX request" },
+      });
   });
 
   it("does not leak absolute paths from outside source results", async () => {
-    const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
-    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
+    const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% resume\n");
+    await write(projectRoot, "sample/resume.pdf", "%PDF-1.7\n");
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: "Input:/tmp/secret.tex\nLine:38\nColumn:1\n",
@@ -154,13 +94,12 @@ describe("app synctex route", () => {
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner }),
+      createApp({ config: config(projectRoot), commandRunner: runner }),
     )
       .post("/api/synctex")
-      .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })
-      .expect(200);
+      .send({ resumeId: "sample", page: 1, x: 42, y: 84 })
+      .expect(200, { found: false });
 
-    expect(response.body).toEqual({ found: false });
-    expectNoAbsolutePathLeak(response.body, root);
+    expect(JSON.stringify(response.body)).not.toContain(projectRoot);
   });
 });

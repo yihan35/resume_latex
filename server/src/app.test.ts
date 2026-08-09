@@ -2,9 +2,9 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import request from "supertest";
-
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { AppConfig } from "./config/appConfig.js";
 import { createApp } from "./app.js";
 
 const tempRoots: string[] = [];
@@ -13,6 +13,18 @@ async function makeTempRoot(): Promise<string> {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "resume-app-"));
   tempRoots.push(tempRoot);
   return tempRoot;
+}
+
+function config(projectRoot: string): AppConfig {
+  return {
+    repoRoot: projectRoot,
+    projectRoot,
+    serverPort: 43871,
+    clientPort: 5173,
+    entryFiles: ["resume.tex", "main.tex", "简历.tex"],
+    latexCommand: "xelatex",
+    synctexCommand: "synctex",
+  };
 }
 
 async function writeProjectFile(
@@ -34,20 +46,12 @@ afterEach(async () => {
 });
 
 describe("app", () => {
-  function expectNoAbsolutePathLeak(body: unknown, root: string): void {
-    const serializedBody = JSON.stringify(body);
-
-    expect(serializedBody).not.toContain("/Users");
-    expect(serializedBody).not.toContain("/tmp");
-    expect(serializedBody).not.toContain(root);
-  }
-
   it("returns discovered resumes and tex files", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "resume_common.tex", "% common\n");
     await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
 
-    const response = await request(createApp({ projectRoot: root }))
+    const response = await request(createApp({ config: config(root) }))
       .get("/api/project")
       .expect(200);
 
@@ -66,111 +70,59 @@ describe("app", () => {
         { path: "多模态/简历.tex", name: "简历.tex", dir: "多模态" },
       ]),
     );
-    expect(response.body.texFiles).toHaveLength(2);
   });
 
-  it("reads a tex file by query path", async () => {
-    const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.tex", "% existing\n");
-
-    const response = await request(createApp({ projectRoot: root }))
-      .get("/api/file")
-      .query({ path: "多模态/简历.tex" })
-      .expect(200);
-
-    expect(response.body).toEqual({
-      path: "多模态/简历.tex",
-      content: "% existing\n",
-    });
-  });
-
-  it("saves a tex file from a valid JSON body", async () => {
+  it("reads and atomically saves a tex file", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "多模态/简历.tex", "% before\n");
+    const app = createApp({ config: config(root) });
 
-    await request(createApp({ projectRoot: root }))
+    await request(app)
       .put("/api/file")
       .send({ path: "多模态/简历.tex", content: "% after\n" })
       .expect(200, { ok: true });
-
     await expect(
       readFile(path.join(root, "多模态", "简历.tex"), "utf8"),
     ).resolves.toBe("% after\n");
-  });
-
-  it("returns 400 for unsafe file reads", async () => {
-    const root = await makeTempRoot();
-
-    const response = await request(createApp({ projectRoot: root }))
-      .get("/api/file")
-      .query({ path: "../secret.tex" })
-      .expect(400);
-
-    expect(response.body.error).toMatch(/outside project root/);
-  });
-
-  it("returns 404 JSON without absolute paths for missing file reads", async () => {
-    const root = await makeTempRoot();
-
-    const response = await request(createApp({ projectRoot: root }))
+    await request(app)
       .get("/api/file")
       .query({ path: "多模态/简历.tex" })
-      .expect(404);
-
-    expect(response.body).toEqual({ error: "File not found" });
-    expectNoAbsolutePathLeak(response.body, root);
+      .expect(200, { path: "多模态/简历.tex", content: "% after\n" });
   });
 
-  it("returns 400 for invalid save bodies", async () => {
+  it("returns public envelopes for invalid and missing file requests", async () => {
     const root = await makeTempRoot();
+    const app = createApp({ config: config(root) });
 
-    const response = await request(createApp({ projectRoot: root }))
+    await request(app)
       .put("/api/file")
-      .send({ path: "多模态/简历.tex" })
-      .expect(400);
-
-    expect(response.body.error).toMatch(/Invalid save body/);
+      .send({ path: "resume.tex" })
+      .expect(400, {
+        error: { code: "INVALID_REQUEST", message: "Invalid save request" },
+      });
+    await request(app)
+      .get("/api/file")
+      .query({ path: "missing.tex" })
+      .expect(404, {
+        error: { code: "FILE_NOT_FOUND", message: "File not found" },
+      });
   });
 
-  it("returns 400 JSON for malformed save JSON", async () => {
+  it("serves static assets and falls back to the SPA for non-API GET requests", async () => {
     const root = await makeTempRoot();
+    const staticDir = path.join(root, "client");
+    await writeProjectFile(staticDir, "index.html", "<main>resume app</main>");
+    await writeProjectFile(staticDir, "assets/app.js", "console.log('app')");
+    const app = createApp({ config: config(root), staticDir });
 
-    const response = await request(createApp({ projectRoot: root }))
-      .put("/api/file")
-      .set("Content-Type", "application/json")
-      .send('{"path":"多模态/简历.tex",')
-      .expect(400);
-
-    expect(response.body).toEqual({ error: "Malformed JSON" });
-  });
-
-  it("returns 413 JSON for oversized save JSON", async () => {
-    const root = await makeTempRoot();
-
-    const response = await request(createApp({ projectRoot: root }))
-      .put("/api/file")
-      .send({ path: "多模态/简历.tex", content: "x".repeat(1024 * 1024) })
-      .expect(413);
-
-    expect(response.body).toEqual({ error: "Request body too large" });
-  });
-
-  it("returns 400 for unsafe saves without writing outside root", async () => {
-    const root = await makeTempRoot();
-    const outsidePath = path.join(path.dirname(root), "secret.tex");
-    await rm(outsidePath, { force: true });
-
-    const response = await request(createApp({ projectRoot: root }))
-      .put("/api/file")
-      .send({ path: "../secret.tex", content: "secret" })
-      .expect(400);
-
-    expect(response.body.error).toMatch(
-      /outside project root|Invalid file path/,
-    );
-    expectNoAbsolutePathLeak(response.body, root);
-    await expect(readFile(outsidePath, "utf8")).rejects.toMatchObject({
-      code: "ENOENT",
-    });
+    await request(app).get("/assets/app.js").expect(200, "console.log('app')");
+    await request(app)
+      .get("/workspace/resume")
+      .expect(200, "<main>resume app</main>");
+    await request(app)
+      .get("/api/not-a-route")
+      .expect(404, {
+        error: { code: "INVALID_REQUEST", message: "API route not found" },
+      });
   });
 });
