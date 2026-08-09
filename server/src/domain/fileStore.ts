@@ -53,10 +53,10 @@ async function captureLocation(
   relativePath: string,
 ): Promise<LocationSnapshot> {
   const destination = resolveProjectTexPath(projectRoot, relativePath);
-  const resolvedRoot = path.resolve(projectRoot);
+  const resolvedRoot = await fs.promises.realpath(path.resolve(projectRoot));
   const parentPath = path.dirname(destination);
   const snapshot: LocationSnapshot = {
-    projectRoot,
+    projectRoot: resolvedRoot,
     relativePath,
     destination,
     parentPath,
@@ -106,7 +106,14 @@ async function validateLocation(
   snapshot: LocationSnapshot,
   expectedDestination: Stats | FileIdentity | undefined,
 ): Promise<void> {
-  resolveProjectTexPath(snapshot.projectRoot, snapshot.relativePath);
+  const resolvedDestination = resolveProjectTexPath(
+    snapshot.projectRoot,
+    snapshot.relativePath,
+  );
+
+  if (resolvedDestination !== snapshot.destination) {
+    outsideProjectRoot();
+  }
   await validateParent(snapshot);
   await validateNamedIdentity(
     snapshot.destination,
@@ -229,7 +236,10 @@ export async function saveTexFileAtomically(
   content: string,
 ): Promise<void> {
   const snapshot = await captureLocation(projectRoot, relativePath);
-  const destinationMode = snapshot.destinationStats?.mode;
+  const destinationMode =
+    snapshot.destinationStats === undefined
+      ? 0o666 & ~process.umask()
+      : snapshot.destinationStats.mode & 0o7777;
   const temporaryPath = path.join(
     snapshot.parentPath,
     `.${path.basename(snapshot.destination)}.${randomUUID()}.tmp`,
@@ -246,7 +256,7 @@ export async function saveTexFileAtomically(
         fs.constants.O_CREAT |
         fs.constants.O_EXCL |
         noFollow,
-      destinationMode ?? 0o666,
+      0o600,
     );
     temporaryIdentity = identityOf(await temporaryFile.stat());
     await validateParent(snapshot);
@@ -254,10 +264,7 @@ export async function saveTexFileAtomically(
     await validateLocation(snapshot, snapshot.destinationStats);
     await temporaryFile.writeFile(content, "utf8");
 
-    if (destinationMode !== undefined) {
-      await temporaryFile.chmod(destinationMode & 0o7777);
-    }
-
+    await temporaryFile.chmod(destinationMode);
     await temporaryFile.sync();
     await validateParent(snapshot);
     await validateNamedIdentity(temporaryPath, temporaryIdentity);

@@ -44,6 +44,17 @@ describe("file store", () => {
     );
   });
 
+  it("reads through an in-root symlink to a tex target", async () => {
+    const root = await makeTempRoot();
+    const sourceDirectory = path.join(root, "sources");
+    const target = path.join(sourceDirectory, "cv.tex");
+    await mkdir(sourceDirectory);
+    await writeFile(target, "linked", "utf8");
+    await fs.promises.symlink(target, path.join(root, "resume.tex"), "file");
+
+    await expect(readTexFile(root, "resume.tex")).resolves.toBe("linked");
+  });
+
   it("does not read a non-tex file through a tex-named symlink", async () => {
     const root = await makeTempRoot();
     const target = path.join(root, ".env");
@@ -89,8 +100,11 @@ describe("file store", () => {
     const outside = await makeTempRoot();
     const directory = path.join(root, "sample");
     const relocatedDirectory = path.join(root, "sample-relocated");
-    const destination = path.join(directory, "resume.tex");
     await mkdir(directory);
+    const destination = path.join(
+      await fs.promises.realpath(directory),
+      "resume.tex",
+    );
     await writeFile(path.join(outside, "resume.tex"), "outside", "utf8");
     const actualLstat = fs.promises.lstat.bind(fs.promises);
     let destinationChecks = 0;
@@ -150,6 +164,21 @@ describe("file store", () => {
     expect((await stat(destination)).mode & 0o777).toBe(originalMode);
   });
 
+  it("atomically saves the real tex target without replacing its symlink", async () => {
+    const root = await makeTempRoot();
+    const sourceDirectory = path.join(root, "sources");
+    const target = path.join(sourceDirectory, "cv.tex");
+    const linkedPath = path.join(root, "resume.tex");
+    await mkdir(sourceDirectory);
+    await writeFile(target, "before", "utf8");
+    await fs.promises.symlink(target, linkedPath, "file");
+
+    await saveTexFileAtomically(root, "resume.tex", "after");
+
+    expect((await fs.promises.lstat(linkedPath)).isSymbolicLink()).toBe(true);
+    await expect(readFile(target, "utf8")).resolves.toBe("after");
+  });
+
   it("creates a missing tex file when its parent directory exists", async () => {
     const root = await makeTempRoot();
     const destination = path.join(root, "sample", "resume.tex");
@@ -178,14 +207,23 @@ describe("file store", () => {
     await writeFile(path.join(directory, "resume.tex"), "inside", "utf8");
     await writeFile(path.join(outside, "resume.tex"), "outside", "utf8");
     const actualOpen = fs.promises.open.bind(fs.promises);
+    const actualUnlink = fs.promises.unlink.bind(fs.promises);
+    let createdTemporaryMode: number | undefined;
+    let removedTemporaryContent: string | undefined;
 
     vi.spyOn(fs.promises, "open").mockImplementationOnce(
       async (filePath, flags, mode) => {
         fs.renameSync(directory, relocatedDirectory);
         fs.symlinkSync(outside, directory, "dir");
-        return actualOpen(filePath, flags, mode);
+        const handle = await actualOpen(filePath, flags, mode);
+        createdTemporaryMode = (await handle.stat()).mode & 0o777;
+        return handle;
       },
     );
+    vi.spyOn(fs.promises, "unlink").mockImplementationOnce(async (filePath) => {
+      removedTemporaryContent = await readFile(filePath, "utf8");
+      return actualUnlink(filePath);
+    });
 
     await expect(
       saveTexFileAtomically(root, "sample/resume.tex", "after"),
@@ -196,6 +234,8 @@ describe("file store", () => {
     await expect(
       readFile(path.join(outside, "resume.tex"), "utf8"),
     ).resolves.toBe("outside");
+    expect(createdTemporaryMode).toBe(0o600);
+    expect(removedTemporaryContent).toBe("");
     expect(
       (await readdir(outside)).filter((name) => /^\..*\.tmp$/.test(name)),
     ).toEqual([]);

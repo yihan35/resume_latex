@@ -124,15 +124,44 @@ export function resolveProjectTexPath(
     throw new Error("Only .tex files can be edited");
   }
 
+  let existingPathIsSymlink: boolean;
+
   try {
-    if (lstatSync(absolutePath).isSymbolicLink()) {
-      throw new Error("Only .tex files can be edited");
-    }
+    existingPathIsSymlink = lstatSync(absolutePath).isSymbolicLink();
   } catch (error) {
-    if (!isMissingFileError(error)) {
-      throw error;
+    if (isMissingFileError(error)) {
+      try {
+        return path.join(
+          realpathSync(path.dirname(absolutePath)),
+          path.basename(absolutePath),
+        );
+      } catch (parentError) {
+        if (isMissingFileError(parentError)) {
+          return absolutePath;
+        }
+
+        throw parentError;
+      }
     }
+
+    throw error;
   }
 
-  return absolutePath;
+  let realPath: string;
+
+  try {
+    realPath = realpathSync(absolutePath);
+  } catch (error) {
+    if (existingPathIsSymlink && isMissingFileError(error)) {
+      throw new Error("Only .tex files can be edited", { cause: error });
+    }
+
+    throw error;
+  }
+
+  if (path.extname(realPath) !== ".tex") {
+    throw new Error("Only .tex files can be edited");
+  }
+
+  return realPath;
 }
