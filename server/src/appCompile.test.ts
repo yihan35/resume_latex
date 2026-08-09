@@ -108,6 +108,55 @@ describe("app compile routes", () => {
     expect(Buffer.from(pdfResponse.body).toString("utf8")).toBe("%PDF-old\n");
   });
 
+  it("rejects a concurrent compile before it can overwrite the active source", async () => {
+    const root = await makeTempRoot();
+    await writeProjectFile(root, "candidate/resume.tex", "% before\n");
+    let releaseCompile: (() => void) | undefined;
+    let markRunnerStarted: (() => void) | undefined;
+    const compileGate = new Promise<void>((resolve) => {
+      releaseCompile = resolve;
+    });
+    const runnerStarted = new Promise<void>((resolve) => {
+      markRunnerStarted = resolve;
+    });
+    const runner: CommandRunner = async (_command, _args, options) => {
+      markRunnerStarted?.();
+      await compileGate;
+      await writeFile(path.join(options.cwd, "resume.pdf"), "%PDF-1.7\n");
+      return { code: 0, stdout: "", stderr: "", timedOut: false };
+    };
+    const app = createApp({ projectRoot: root, commandRunner: runner });
+
+    const firstRequest = request(app)
+      .post("/api/compile")
+      .send({
+        resumeDir: "candidate",
+        currentFile: { path: "candidate/resume.tex", content: "% first\n" },
+      })
+      .expect(200)
+      .then((response) => response);
+    await runnerStarted;
+
+    const secondResponse = await request(app)
+      .post("/api/compile")
+      .send({
+        resumeDir: "candidate",
+        currentFile: { path: "candidate/resume.tex", content: "% second\n" },
+      });
+    const sourceDuringCompile = await readFile(
+      path.join(root, "candidate/resume.tex"),
+      "utf8",
+    );
+    releaseCompile?.();
+    await firstRequest;
+
+    expect(secondResponse.status).toBe(409);
+    expect(secondResponse.body).toEqual({
+      error: "Resume is already compiling",
+    });
+    expect(sourceDuringCompile).toBe("% first\n");
+  });
+
   it("redacts absolute paths from compile logs", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "多模态/简历.tex", "% resume\n");

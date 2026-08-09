@@ -63,6 +63,10 @@ function saveFileError(error: unknown): HttpErrorBody {
 }
 
 function compileError(error: unknown): HttpErrorBody {
+  if (errorCode(error) === "COMPILE_BUSY") {
+    return { status: 409, error: "Resume is already compiling" };
+  }
+
   if (isUnsafePathError(error)) {
     return { status: 400, error: errorMessage(error) };
   }
@@ -262,18 +266,24 @@ export function createApp(options: AppOptions): Express {
 
     try {
       if (request.body.currentFile !== undefined) {
-        await saveTexFileAtomically(
-          options.projectRoot,
-          request.body.currentFile.path,
-          request.body.currentFile.content,
-        );
+        resolveProjectPath(options.projectRoot, request.body.currentFile.path);
       }
-
       const resume = await findResume(request.body.resumeDir);
       if (resume === undefined) {
         throw new Error("Resume not found");
       }
-      const result = await compiler.compile(resume);
+      const currentFile = request.body.currentFile;
+      const result = await compiler.compile(
+        resume,
+        currentFile === undefined
+          ? undefined
+          : () =>
+              saveTexFileAtomically(
+                options.projectRoot,
+                currentFile.path,
+                currentFile.content,
+              ),
+      );
       response.json(result);
     } catch (error) {
       const responseBody = compileError(error);

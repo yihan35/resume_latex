@@ -262,6 +262,30 @@ describe("CompileService", () => {
     );
     expect(`${result.stdout}\n${result.stderr}`).toContain("[path]");
   });
+
+  it("bounds compiler output after path redaction expands it", async () => {
+    const root = await makeTempRoot();
+    await writeProjectFile(root, "candidate/resume.tex", "% resume\n");
+    const maxOutputBytes = 5 * 1024 * 1024;
+    const runner: CommandRunner = async () =>
+      commandResult({
+        code: 1,
+        stdout: `${"a".repeat(maxOutputBytes - 2)}/x`,
+      });
+
+    const result = await new CompileService({
+      projectRoot: root,
+      latexCommand: "xelatex",
+      runner,
+    }).compile(resume("candidate"));
+
+    expect(Buffer.byteLength(result.stdout)).toBeLessThanOrEqual(
+      maxOutputBytes,
+    );
+    expect(Buffer.byteLength(result.logSummary)).toBeLessThanOrEqual(
+      maxOutputBytes,
+    );
+  });
 });
 
 describe("compiler log helpers", () => {
@@ -280,5 +304,18 @@ describe("compiler log helpers", () => {
         "/project",
       ),
     ).toBe("[path] [path]");
+  });
+
+  it("redacts quoted and unquoted space-containing paths and UNC paths", () => {
+    const output = sanitizeCompileLog(
+      String.raw`open "/Users/Jane Doe/Private Resume/main.tex" then /Users/Jane Doe/Private Resume/main.tex:12 and "\\server\Private Share\resume.tex"`,
+      "/project",
+    );
+
+    expect(output).not.toContain("Jane");
+    expect(output).not.toContain("Private Resume");
+    expect(output).not.toContain("server");
+    expect(output).not.toContain("Private Share");
+    expect(output.match(/\[path\]/g)).toHaveLength(3);
   });
 });

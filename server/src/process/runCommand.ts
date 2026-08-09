@@ -37,6 +37,41 @@ function appendCappedChunk(
   return capturedBytes + Math.min(chunk.length, remainingBytes);
 }
 
+function truncateUtf8(value: string, maxBytes: number): string {
+  const bytes = Buffer.from(value);
+  if (bytes.length <= maxBytes) {
+    return value;
+  }
+
+  let result = bytes.subarray(0, Math.max(0, maxBytes)).toString("utf8");
+  while (Buffer.byteLength(result) > maxBytes) {
+    result = result.slice(0, -1);
+  }
+  return result;
+}
+
+function decodeCaptured(chunks: Buffer[], maxBytes: number): string {
+  return truncateUtf8(Buffer.concat(chunks).toString("utf8"), maxBytes);
+}
+
+function appendDiagnostic(
+  chunks: Buffer[],
+  diagnostic: string,
+  maxBytes: number,
+): string {
+  const boundedDiagnostic = truncateUtf8(diagnostic, maxBytes);
+  const diagnosticBytes = Buffer.byteLength(boundedDiagnostic);
+  const hasCapturedOutput = chunks.some((chunk) => chunk.length > 0);
+  const separator = hasCapturedOutput && diagnosticBytes > 0 ? "\n" : "";
+  const capturedBudget = Math.max(
+    0,
+    maxBytes - diagnosticBytes - Buffer.byteLength(separator),
+  );
+  const captured = decodeCaptured(chunks, capturedBudget);
+
+  return `${captured}${captured.length > 0 ? separator : ""}${boundedDiagnostic}`;
+}
+
 export const runCommand: CommandRunner = (command, args, options) =>
   new Promise((resolve) => {
     const child = spawn(command, [...args], {
@@ -55,8 +90,22 @@ export const runCommand: CommandRunner = (command, args, options) =>
     let forceKillTimer: NodeJS.Timeout | undefined;
 
     const capturedOutput = (): Pick<CommandResult, "stdout" | "stderr"> => ({
-      stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-      stderr: Buffer.concat(stderrChunks).toString("utf8"),
+      stdout: decodeCaptured(stdoutChunks, maxOutputBytes),
+      stderr: decodeCaptured(stderrChunks, maxOutputBytes),
+    });
+
+    const timeoutMessage = (): string =>
+      `Command timed out after ${timeoutMs}ms`;
+
+    const timeoutResult = (extraDiagnostic = ""): CommandResult => ({
+      code: TIMEOUT_EXIT_CODE,
+      stdout: decodeCaptured(stdoutChunks, maxOutputBytes),
+      stderr: appendDiagnostic(
+        stderrChunks,
+        [extraDiagnostic, timeoutMessage()].filter(Boolean).join("\n"),
+        maxOutputBytes,
+      ),
+      timedOut: true,
     });
 
     const finish = (result: CommandResult): void => {
@@ -90,36 +139,51 @@ export const runCommand: CommandRunner = (command, args, options) =>
     });
 
     child.on("error", (error) => {
-      const output = capturedOutput();
+      if (timedOut) {
+        finish(timeoutResult(error.message));
+        return;
+      }
+
       finish({
         code: 127,
-        stdout: output.stdout,
-        stderr: [output.stderr, error.message].filter(Boolean).join("\n"),
-        timedOut,
+        stdout: decodeCaptured(stdoutChunks, maxOutputBytes),
+        stderr: appendDiagnostic(stderrChunks, error.message, maxOutputBytes),
+        timedOut: false,
       });
     });
 
     child.on("close", (code) => {
+      if (timedOut) {
+        finish(timeoutResult());
+        return;
+      }
+
       const output = capturedOutput();
       finish({
-        code: timedOut ? TIMEOUT_EXIT_CODE : (code ?? 1),
+        code: code ?? 1,
         stdout: output.stdout,
-        stderr: [
-          output.stderr,
-          timedOut ? `Command timed out after ${timeoutMs}ms` : "",
-        ]
-          .filter(Boolean)
-          .join("\n"),
-        timedOut,
+        stderr: output.stderr,
+        timedOut: false,
       });
     });
 
     const timeoutTimer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGTERM");
+      try {
+        child.kill("SIGTERM");
+      } catch (error) {
+        finish(timeoutResult(error instanceof Error ? error.message : ""));
+        return;
+      }
       if (!completed) {
         forceKillTimer = setTimeout(() => {
-          child.kill("SIGKILL");
+          try {
+            child.kill("SIGKILL");
+          } catch (error) {
+            finish(timeoutResult(error instanceof Error ? error.message : ""));
+            return;
+          }
+          finish(timeoutResult());
         }, TIMEOUT_KILL_GRACE_MS);
       }
     }, timeoutMs);

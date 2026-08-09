@@ -59,21 +59,47 @@ function escapeRegExp(value: string): string {
 
 function capOutput(value: string): string {
   const bytes = Buffer.from(value);
-  return bytes.length <= MAX_RETURNED_OUTPUT_BYTES
-    ? value
-    : bytes.subarray(0, MAX_RETURNED_OUTPUT_BYTES).toString("utf8");
+  if (bytes.length <= MAX_RETURNED_OUTPUT_BYTES) {
+    return value;
+  }
+
+  let result = bytes.subarray(0, MAX_RETURNED_OUTPUT_BYTES).toString("utf8");
+  while (Buffer.byteLength(result) > MAX_RETURNED_OUTPUT_BYTES) {
+    result = result.slice(0, -1);
+  }
+  return result;
 }
 
 export function sanitizeCompileLog(log: string, projectRoot: string): string {
   const resolvedRoot = path.resolve(projectRoot);
+  const quotedAbsolutePath =
+    /(["'])(?:(?:[A-Za-z]:[\\/])|(?:\\\\)|\/)[^"'\r\n]*\1/g;
+  const unixPathWithSpaces =
+    /(?:\/[^/\r\n"'<>:]+)+\.(?:tex|pdf|log|synctex(?:\.gz)?)(?=:\d+(?::\d+)?|[\s,;)]|$)/gi;
+  const windowsPathWithSpaces =
+    /\b[A-Za-z]:(?:[\\/][^\\/\r\n"'<>:]+)+\.(?:tex|pdf|log|synctex(?:\.gz)?)(?=:\d+(?::\d+)?|[\s,;)]|$)/gi;
+  const uncPathWithSpaces =
+    /\\\\[^\\/\r\n"'<>:]+(?:[\\/][^\\/\r\n"'<>:]+)+\.(?:tex|pdf|log|synctex(?:\.gz)?)(?=:\d+(?::\d+)?|[\s,;)]|$)/gi;
   const windowsAbsolutePath =
     /\b[A-Za-z]:[\\/](?:[^\s"'<>()[\]{}:]+[\\/])*[^\s"'<>()[\]{}:]*/g;
+  const uncAbsolutePath =
+    /\\\\(?:[^\\\s"'<>()[\]{}:]+\\)+[^\\\s"'<>()[\]{}:]*/g;
   const unixAbsolutePath = /\/(?:[^/\s"'<>()[\]{}:]+\/)*[^/\s"'<>()[\]{}:]+/g;
 
-  return capOutput(log)
+  const redacted = capOutput(log)
     .replace(new RegExp(escapeRegExp(resolvedRoot), "g"), "[project]")
+    .replace(quotedAbsolutePath, (matched) => {
+      const quote = matched[0];
+      return `${quote}[path]${quote}`;
+    })
+    .replace(windowsPathWithSpaces, "[path]")
+    .replace(uncPathWithSpaces, "[path]")
+    .replace(unixPathWithSpaces, "[path]")
     .replace(windowsAbsolutePath, "[path]")
+    .replace(uncAbsolutePath, "[path]")
     .replace(unixAbsolutePath, "[path]");
+
+  return capOutput(redacted);
 }
 
 function isLatexErrorMarker(line: string): boolean {
@@ -146,13 +172,17 @@ export class CompileService {
     this.#runner = options.runner ?? runCommand;
   }
 
-  async compile(resume: ResumeInfo): Promise<CompileResult> {
+  async compile(
+    resume: ResumeInfo,
+    prepare?: () => Promise<void>,
+  ): Promise<CompileResult> {
     if (this.#activeResumes.has(resume.id)) {
       throw codedError("COMPILE_BUSY", "This resume is already compiling");
     }
     this.#activeResumes.add(resume.id);
 
     try {
+      await prepare?.();
       return await this.#compileUnlocked(resume);
     } finally {
       this.#activeResumes.delete(resume.id);

@@ -65,6 +65,22 @@ describe("runCommand", () => {
     });
   });
 
+  it("reserves capped stderr space for a spawn diagnostic", async () => {
+    const child = new FakeChild();
+    spawnMock.mockReturnValue(child);
+
+    const pending = runCommand("missing-tool", [], {
+      cwd: "/project",
+      maxOutputBytes: 32,
+    });
+    child.stderr.write("x".repeat(100));
+    child.emit("error", new Error("spawn ENOENT"));
+
+    const result = await pending;
+    expect(Buffer.byteLength(result.stderr)).toBeLessThanOrEqual(32);
+    expect(result.stderr).toContain("spawn ENOENT");
+  });
+
   it("records a timeout, terminates, then force-kills after the grace period", async () => {
     vi.useFakeTimers();
     const child = new FakeChild();
@@ -112,6 +128,28 @@ describe("runCommand", () => {
       code: 124,
       timedOut: true,
     });
+  });
+
+  it("finishes at the kill grace deadline when the child never closes", async () => {
+    vi.useFakeTimers();
+    const child = new FakeChild();
+    child.kill.mockReturnValue(false);
+    spawnMock.mockReturnValue(child);
+
+    const pending = runCommand("stuck-tool", [], {
+      cwd: "/project",
+      timeoutMs: 25,
+      maxOutputBytes: 40,
+    });
+    child.stderr.write("x".repeat(100));
+    await vi.advanceTimersByTimeAsync(275);
+
+    const result = await pending;
+    expect(result).toMatchObject({ code: 124, timedOut: true });
+    expect(result.stderr).toContain("timed out after 25ms");
+    expect(Buffer.byteLength(result.stderr)).toBeLessThanOrEqual(40);
+    expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+    expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
   });
 
   it("caps stdout and stderr independently", async () => {
