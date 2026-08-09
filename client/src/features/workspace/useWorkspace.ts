@@ -48,13 +48,17 @@ function defaultPath(
 
 export function useWorkspace(options: { api?: ApiClient } = {}) {
   const apiRef = useRef<ApiClient>(options.api ?? createApiClient());
-  const [state, dispatch] = useReducer(workspaceReducer, initialWorkspaceState);
+  const [state, reactDispatch] = useReducer(
+    workspaceReducer,
+    initialWorkspaceState,
+  );
   const stateRef = useRef(state);
   const projectIdRef = useRef(0);
   const fileIdRef = useRef(0);
   const compileIdRef = useRef(0);
   const synctexIdRef = useRef(0);
   const saveIdRef = useRef(0);
+  const selectionIdRef = useRef(0);
   const lastReadyFileRef = useRef<string | null>(null);
   const controllers = useRef({
     project: null as AbortController | null,
@@ -63,10 +67,13 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
     compile: null as AbortController | null,
     synctex: null as AbortController | null,
   });
-
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+  const dispatch = useCallback(
+    (action: Parameters<typeof workspaceReducer>[1]) => {
+      stateRef.current = workspaceReducer(stateRef.current, action);
+      reactDispatch(action);
+    },
+    [],
+  );
 
   const loadFile = useCallback(
     async (path: string, targetLine: number | null = null) => {
@@ -101,7 +108,7 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
         });
       }
     },
-    [],
+    [dispatch],
   );
 
   const loadProject = useCallback(async () => {
@@ -129,7 +136,7 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
         error: message(error, "Unable to load project"),
       });
     }
-  }, [loadFile]);
+  }, [dispatch, loadFile]);
 
   const selectResume = useCallback(
     async (id: string) => {
@@ -143,6 +150,7 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
       controllers.current.synctex?.abort();
       compileIdRef.current += 1;
       synctexIdRef.current += 1;
+      selectionIdRef.current += 1;
       dispatch({
         type: "resumeSelected",
         resumeId: id,
@@ -152,21 +160,27 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
       const path = defaultPath(project, id);
       if (path !== null) await loadFile(path);
     },
-    [loadFile],
+    [dispatch, loadFile],
   );
 
   const selectFile = useCallback(
     async (path: string) => {
       const project = stateRef.current.project;
       const owner = project === null ? undefined : resumeForPath(project, path);
+      const previousCompileRequestId = stateRef.current.compileRequestId;
+      controllers.current.compile?.abort();
+      controllers.current.synctex?.abort();
+      compileIdRef.current += 1;
+      synctexIdRef.current += 1;
+      selectionIdRef.current += 1;
+      dispatch({
+        type: "compileCancelled",
+        requestId: previousCompileRequestId,
+      });
       if (
         owner !== undefined &&
         owner.id !== stateRef.current.selectedResumeId
       ) {
-        controllers.current.compile?.abort();
-        controllers.current.synctex?.abort();
-        compileIdRef.current += 1;
-        synctexIdRef.current += 1;
         dispatch({
           type: "resumeSelected",
           resumeId: owner.id,
@@ -176,12 +190,15 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
       }
       await loadFile(path);
     },
-    [loadFile],
+    [dispatch, loadFile],
   );
 
-  const editCurrentFile = useCallback((content: string) => {
-    dispatch({ type: "editCurrentFile", content });
-  }, []);
+  const editCurrentFile = useCallback(
+    (content: string) => {
+      dispatch({ type: "editCurrentFile", content });
+    },
+    [dispatch],
+  );
 
   const saveCurrentFile = useCallback(async (): Promise<boolean> => {
     const draft = selectCurrentDraft(stateRef.current);
@@ -204,8 +221,13 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
       dispatch({ type: "saveSucceeded", path: draft.path, requestId, content });
       return true;
     } catch (error) {
-      if (isAbort(controller, error) || requestId !== saveIdRef.current)
+      if (isAbort(controller, error)) {
+        if (requestId === saveIdRef.current) {
+          dispatch({ type: "saveCancelled", path: draft.path, requestId });
+        }
         return false;
+      }
+      if (requestId !== saveIdRef.current) return false;
       dispatch({
         type: "saveFailed",
         path: draft.path,
@@ -214,14 +236,16 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
       });
       return false;
     }
-  }, []);
+  }, [dispatch]);
 
   const compileSelectedResume = useCallback(async () => {
     const beforeSave = stateRef.current;
     const resume = selectSelectedResume(beforeSave);
+    const selectionId = selectionIdRef.current;
     if (resume === null || !selectCanCompile(beforeSave)) return;
     if (selectIsCurrentDraftDirty(beforeSave) && !(await saveCurrentFile()))
       return;
+    if (selectionId !== selectionIdRef.current) return;
     controllers.current.compile?.abort();
     const controller = new AbortController();
     controllers.current.compile = controller;
@@ -233,11 +257,19 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
         { resumeId: resume.id },
         controller.signal,
       );
-      if (controller.signal.aborted || requestId !== compileIdRef.current)
+      if (
+        controller.signal.aborted ||
+        requestId !== compileIdRef.current ||
+        selectionId !== selectionIdRef.current
+      )
         return;
       dispatch({ type: "compileSucceeded", requestId, result });
     } catch (error) {
-      if (isAbort(controller, error) || requestId !== compileIdRef.current)
+      if (
+        isAbort(controller, error) ||
+        requestId !== compileIdRef.current ||
+        selectionId !== selectionIdRef.current
+      )
         return;
       dispatch({
         type: "compileFailed",
@@ -245,7 +277,7 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
         error: message(error, "Compile request failed"),
       });
     }
-  }, [saveCurrentFile]);
+  }, [dispatch, saveCurrentFile]);
 
   const lookupSource = useCallback(
     async (page: number, x: number, y: number) => {
@@ -338,7 +370,7 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
         });
       }
     },
-    [loadFile],
+    [dispatch, loadFile],
   );
 
   useEffect(() => {

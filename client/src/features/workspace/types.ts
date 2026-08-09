@@ -57,7 +57,9 @@ export type WorkspaceAction =
   | { type: "saveStarted"; path: string; requestId: number }
   | { type: "saveSucceeded"; path: string; requestId: number; content?: string }
   | { type: "saveFailed"; path: string; requestId: number; error: string }
+  | { type: "saveCancelled"; path: string; requestId: number }
   | { type: "compileStarted"; requestId: number }
+  | { type: "compileCancelled"; requestId: number }
   | { type: "compileSucceeded"; requestId: number; result: CompileResult }
   | { type: "compileFailed"; requestId: number; error: string }
   | { type: "synctexStarted"; requestId: number }

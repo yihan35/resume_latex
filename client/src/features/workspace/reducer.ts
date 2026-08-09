@@ -160,6 +160,18 @@ export function workspaceReducer(
         error: action.error,
       };
     }
+    case "saveCancelled": {
+      const draft = state.drafts[action.path];
+      if (draft === undefined || draft.saveRequestId !== action.requestId)
+        return state;
+      return {
+        ...state,
+        drafts: {
+          ...state.drafts,
+          [action.path]: { ...draft, saveState: "idle", error: undefined },
+        },
+      };
+    }
     case "compileStarted":
       return {
         ...state,
@@ -168,6 +180,10 @@ export function workspaceReducer(
         error: undefined,
         activityMessage: "Compiling current resume...",
       };
+    case "compileCancelled":
+      return action.requestId !== state.compileRequestId
+        ? state
+        : { ...state, compileState: "idle" };
     case "compileSucceeded": {
       if (action.requestId !== state.compileRequestId) return state;
       if (!action.result.ok) {

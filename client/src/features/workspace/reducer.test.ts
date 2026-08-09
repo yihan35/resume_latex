@@ -115,6 +115,40 @@ describe("workspaceReducer", () => {
     });
   });
 
+  it("returns an aborted save to idle without discarding the dirty draft", () => {
+    let state = workspaceReducer(initialWorkspaceState, {
+      type: "fileRequested",
+      requestId: 1,
+      path: "main.tex",
+    });
+    state = workspaceReducer(state, {
+      type: "fileLoaded",
+      requestId: 1,
+      path: "main.tex",
+      content: "saved",
+    });
+    state = workspaceReducer(state, {
+      type: "editCurrentFile",
+      content: "changed",
+    });
+    state = workspaceReducer(state, {
+      type: "saveStarted",
+      path: "main.tex",
+      requestId: 4,
+    });
+    state = workspaceReducer(state, {
+      type: "saveCancelled",
+      path: "main.tex",
+      requestId: 4,
+    });
+
+    expect(state.drafts["main.tex"]).toMatchObject({
+      content: "changed",
+      savedContent: "saved",
+      saveState: "idle",
+    });
+  });
+
   it("ignores stale completions and preserves the prior preview after a failed compile", () => {
     let state = workspaceReducer(initialWorkspaceState, {
       type: "compileStarted",

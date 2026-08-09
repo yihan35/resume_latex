@@ -63,6 +63,25 @@ describe("createApiClient", () => {
     } satisfies Partial<ApiClientError>);
   });
 
+  it("rejects unknown error codes as malformed envelopes", async () => {
+    const api = createApiClient(
+      vi
+        .fn()
+        .mockResolvedValue(
+          response(
+            { error: { code: "PRIVATE_FAILURE", message: "private detail" } },
+            500,
+          ),
+        ),
+    );
+
+    await expect(api.getProject()).rejects.toMatchObject({
+      status: 500,
+      code: "INTERNAL_ERROR",
+      message: "Request failed with status 500",
+    } satisfies Partial<ApiClientError>);
+  });
+
   it("uses a safe internal error when an error response cannot be decoded", async () => {
     const api = createApiClient(
       vi.fn().mockResolvedValue({

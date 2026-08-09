@@ -38,6 +38,17 @@ export class ApiClientError extends Error {
 
 type Fetcher = typeof fetch;
 
+const apiErrorCodes = new Set<ApiErrorCode>([
+  "INVALID_REQUEST",
+  "FILE_NOT_FOUND",
+  "UNSAFE_PATH",
+  "LATEX_NOT_FOUND",
+  "SYNCTEX_NOT_FOUND",
+  "COMPILE_BUSY",
+  "COMPILE_FAILED",
+  "INTERNAL_ERROR",
+]);
+
 function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
   if (typeof value !== "object" || value === null || !("error" in value)) {
     return false;
@@ -48,6 +59,7 @@ function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
     error !== null &&
     "code" in error &&
     typeof error.code === "string" &&
+    apiErrorCodes.has(error.code as ApiErrorCode) &&
     "message" in error &&
     typeof error.message === "string"
   );
