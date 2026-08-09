@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { App } from "./App";
+import { App } from "./app/App";
 
 vi.mock("@monaco-editor/react", () => ({
   default: ({
@@ -28,7 +28,7 @@ vi.mock("@monaco-editor/react", () => ({
   ),
 }));
 
-vi.mock("./components/PdfViewer", () => ({
+vi.mock("./features/preview/PdfViewer", () => ({
   PdfViewer: ({
     pdfPath,
     onPdfClick,

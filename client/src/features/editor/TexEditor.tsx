@@ -16,7 +16,6 @@ function revealTargetLine(
   targetLine: number,
 ) {
   const targetPosition = { lineNumber: targetLine, column: 1 };
-
   editor.setPosition(targetPosition);
   editor.revealPositionInCenter(targetPosition);
   editor.focus();
@@ -32,33 +31,25 @@ export function TexEditor({
 }: TexEditorProps) {
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const lastRevealedRequestRef = useRef<number | null>(null);
-
   const revealPendingTarget = useCallback(
     (editor: MonacoEditor.IStandaloneCodeEditor) => {
       if (
         targetLine === null ||
         lastRevealedRequestRef.current === targetLineRequestId
-      ) {
+      )
         return;
-      }
-
       lastRevealedRequestRef.current = targetLineRequestId;
       revealTargetLine(editor, targetLine);
     },
     [targetLine, targetLineRequestId],
   );
-
   const handleMount: OnMount = (editor) => {
     editorRef.current = editor;
     revealPendingTarget(editor);
   };
 
   useEffect(() => {
-    if (editorRef.current === null) {
-      return;
-    }
-
-    revealPendingTarget(editorRef.current);
+    if (editorRef.current !== null) revealPendingTarget(editorRef.current);
   }, [revealPendingTarget]);
 
   if (path === null) {

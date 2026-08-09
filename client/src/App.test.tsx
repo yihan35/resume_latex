@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { App } from "./App";
+import { App } from "./app/App";
 import type { SynctexResult } from "../../shared/contracts";
 
 type SuccessfulSynctexResult = Extract<SynctexResult, { found: true }>;

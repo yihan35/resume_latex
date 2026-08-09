@@ -1,0 +1,123 @@
+.app-shell {
+  height: 100vh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 52px minmax(0, 1fr);
+  background: #eef2f5;
+}
+.workspace {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 280px) minmax(320px, var(--editor-pane-fr, 0.5fr))
+    8px minmax(320px, var(--preview-pane-fr, 0.5fr));
+  overflow: hidden;
+}
+.workspace.is-file-pane-collapsed {
+  grid-template-columns:
+    44px minmax(0, var(--editor-pane-fr, 0.5fr))
+    8px minmax(0, var(--preview-pane-fr, 0.5fr));
+}
+.file-pane,
+.editor-pane,
+.right-rail {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+.file-pane,
+.editor-pane {
+  border-right: 1px solid #d6dee8;
+}
+.right-rail {
+  height: 100%;
+}
+.pdf-pane,
+.build-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pdf-pane {
+  flex: 1 1 auto;
+  border-bottom: 1px solid #d6dee8;
+}
+.build-pane {
+  flex: 0 0 clamp(92px, 12vh, 124px);
+}
+.tex-editor,
+.build-log {
+  min-height: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  overflow: hidden;
+}
+.pdf-viewer {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  background: #f8fafc;
+}
+@media (max-width: 980px) {
+  body {
+    overflow: auto;
+  }
+  .app-shell {
+    min-height: 100vh;
+    grid-template-rows: 52px auto;
+  }
+  .workspace {
+    grid-template-columns: minmax(210px, 280px) minmax(320px, 1fr);
+    overflow: visible;
+  }
+  .workspace.is-file-pane-collapsed {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .pane-resizer {
+    display: none;
+  }
+  .right-rail {
+    min-height: 520px;
+    grid-column: 1 / -1;
+    border-top: 1px solid #d6dee8;
+  }
+}
+@media (max-width: 720px) {
+  .topbar {
+    align-items: stretch;
+    flex-direction: column;
+    height: auto;
+    padding: 8px 12px;
+  }
+  .app-shell {
+    grid-template-rows: auto auto;
+  }
+  .compile-button {
+    width: 100%;
+  }
+  .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+  .file-pane,
+  .editor-pane,
+  .right-rail {
+    min-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid #d6dee8;
+  }
+  .file-pane.is-collapsed {
+    min-height: 44px;
+  }
+  .right-rail {
+    min-height: 560px;
+  }
+}

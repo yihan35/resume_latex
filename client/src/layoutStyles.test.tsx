@@ -1,45 +1,72 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { describe, expect, it } from "vitest";
+import { App } from "./app/App";
 
-const css = readFileSync(resolve(__dirname, "styles.css"), "utf8");
+vi.mock("./features/workspace/useWorkspace", () => ({
+  useWorkspace: () => ({
+    compileSelectedResume: vi.fn(),
+    editCurrentFile: vi.fn(),
+    lookupSource: vi.fn(),
+    saveCurrentFile: vi.fn(),
+    selectFile: vi.fn(),
+    state: {
+      compileResult: null,
+      compileState: "idle",
+      drafts: {},
+      error: undefined,
+      fileState: "idle",
+      pdfVersion: 0,
+      project: { resumes: [], texFiles: [] },
+      projectState: "ready",
+      selectedResumeId: null,
+      selectedTexPath: null,
+      targetLine: null,
+      targetLineRequestId: 0,
+    },
+  }),
+}));
 
-function cssRule(selector: string) {
-  const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = css.match(
-    new RegExp(`(?:^|})\\s*${escapedSelector}\\s*\\{([^}]*)\\}`),
-  );
+describe("workspace layout behavior", () => {
+  afterEach(() => vi.clearAllMocks());
 
-  return match?.[1] ?? "";
-}
+  it("exposes labeled panes, collapse controls, and an accessible bounded resizer", () => {
+    render(<App />);
 
-describe("workspace layout CSS", () => {
-  it("keeps the editor workspace inside the viewport so inner panes own scrolling", () => {
-    expect(cssRule(".app-shell")).toContain("height: 100vh");
-    expect(cssRule(".app-shell")).toContain(
-      "grid-template-rows: 52px minmax(0, 1fr)",
+    expect(
+      screen.getByRole("complementary", { name: "Project files" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Editor" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "Preview and build" }),
+    ).toBeInTheDocument();
+    const resizer = screen.getByRole("separator", {
+      name: "Resize editor and PDF panes",
+    });
+    expect(resizer).toHaveAttribute("aria-valuemin", "25");
+    expect(resizer).toHaveAttribute("aria-valuemax", "75");
+    fireEvent.keyDown(resizer, { key: "ArrowRight" });
+    expect(resizer).toHaveAttribute("aria-valuenow", "55");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse files panel" }),
     );
-    expect(cssRule(".tex-editor")).toContain("height: 100%");
-    expect(cssRule(".tex-editor")).toContain("overflow: hidden");
+    expect(
+      screen.getByRole("button", { name: "Expand files panel" }),
+    ).toBeInTheDocument();
   });
 
-  it("reserves most right-rail height for the PDF preview instead of the build panel", () => {
-    expect(cssRule(".pdf-pane")).toContain("flex: 1 1 auto");
-    expect(cssRule(".build-pane")).toContain("flex: 0 0");
-    expect(cssRule(".build-pane")).not.toContain("42%");
-  });
+  it("keeps font-size controls within their configured bounds", () => {
+    render(<App />);
+    const decrease = screen.getByRole("button", {
+      name: "Decrease TeX font size",
+    });
+    const increase = screen.getByRole("button", {
+      name: "Increase TeX font size",
+    });
 
-  it("uses equal editor and PDF columns when the file pane is collapsed", () => {
-    const collapsedWorkspaceRule = cssRule(".workspace.is-file-pane-collapsed");
-
-    expect(collapsedWorkspaceRule).toContain("44px");
-    expect(collapsedWorkspaceRule).toContain("8px");
-    expect(collapsedWorkspaceRule).toContain(
-      "minmax(0, var(--editor-pane-fr, 0.5fr))",
-    );
-    expect(collapsedWorkspaceRule).toContain(
-      "minmax(0, var(--preview-pane-fr, 0.5fr))",
-    );
+    for (let index = 0; index < 6; index += 1) fireEvent.click(decrease);
+    expect(decrease).toBeDisabled();
+    for (let index = 0; index < 20; index += 1) fireEvent.click(increase);
+    expect(increase).toBeDisabled();
   });
 });
