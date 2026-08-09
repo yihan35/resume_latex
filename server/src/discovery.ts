@@ -28,7 +28,7 @@ function shouldSkipDirectory(dirName: string): boolean {
 }
 
 export async function discoverResumes(
-  projectRoot: string
+  projectRoot: string,
 ): Promise<ResumeInfo[]> {
   const resolvedRoot = path.resolve(projectRoot);
   const entries = await readdir(resolvedRoot, { withFileTypes: true });
@@ -42,7 +42,9 @@ export async function discoverResumes(
     const directoryPath = path.join(resolvedRoot, entry.name);
     const childEntries = await readdir(directoryPath, { withFileTypes: true });
 
-    if (!childEntries.some((child) => child.isFile() && child.name === MAIN_TEX)) {
+    if (
+      !childEntries.some((child) => child.isFile() && child.name === MAIN_TEX)
+    ) {
       continue;
     }
 
@@ -52,17 +54,19 @@ export async function discoverResumes(
       name: entry.name,
       dir,
       texPath: `${dir}/${MAIN_TEX}`,
-      pdfPath: `${dir}/${MAIN_PDF}`
+      pdfPath: `${dir}/${MAIN_PDF}`,
     });
   }
 
-  return resumes.sort((left, right) =>
-    collator.compare(left.name, right.name) || collator.compare(left.dir, right.dir)
+  return resumes.sort(
+    (left, right) =>
+      collator.compare(left.name, right.name) ||
+      collator.compare(left.dir, right.dir),
   );
 }
 
 export async function discoverTexFiles(
-  projectRoot: string
+  projectRoot: string,
 ): Promise<TexFileInfo[]> {
   const resolvedRoot = path.resolve(projectRoot);
   const files: TexFileInfo[] = [];
@@ -87,7 +91,7 @@ export async function discoverTexFiles(
         files.push({
           path: relativePath,
           name: entry.name,
-          dir: relativeDir === "." ? "" : relativeDir
+          dir: relativeDir === "." ? "" : relativeDir,
         });
       }
     }

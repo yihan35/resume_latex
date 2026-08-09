@@ -18,7 +18,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -27,9 +27,9 @@ async function writeProjectFile(
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -40,16 +40,18 @@ describe("synctex", () => {
 
     const result = parseSynctexEditOutput(
       root,
-      [`Input:${path.join(root, "多模态", "简历.tex")}`, "Line:42", "Column:7"].join(
-        "\n"
-      )
+      [
+        `Input:${path.join(root, "多模态", "简历.tex")}`,
+        "Line:42",
+        "Column:7",
+      ].join("\n"),
     );
 
     expect(result).toEqual({
       found: true,
       file: "多模态/简历.tex",
       line: 42,
-      column: 7
+      column: 7,
     });
   });
 
@@ -57,7 +59,7 @@ describe("synctex", () => {
     const root = await makeTempRoot();
 
     expect(parseSynctexEditOutput(root, "Line:42\nColumn:7\n")).toEqual({
-      found: false
+      found: false,
     });
   });
 
@@ -73,14 +75,14 @@ describe("synctex", () => {
         `Input:${path.join(root, "多模态", "简历.tex")}`,
         "Line:38",
         "Column:-1",
-        "SyncTeX result end"
-      ].join("\n")
+        "SyncTeX result end",
+      ].join("\n"),
     );
 
     expect(result).toEqual({
       found: true,
       file: "多模态/简历.tex",
-      line: 38
+      line: 38,
     });
   });
 
@@ -94,11 +96,11 @@ describe("synctex", () => {
         parseSynctexEditOutput(
           root,
           [`Input:${path.join(root, "多模态", "简历.tex")}`, lineOutput].join(
-            "\n"
-          )
-        )
+            "\n",
+          ),
+        ),
       ).toEqual({ found: false });
-    }
+    },
   );
 
   it("parses a result without Column output", async () => {
@@ -108,12 +110,14 @@ describe("synctex", () => {
     expect(
       parseSynctexEditOutput(
         root,
-        [`Input:${path.join(root, "多模态", "简历.tex")}`, "Line:42"].join("\n")
-      )
+        [`Input:${path.join(root, "多模态", "简历.tex")}`, "Line:42"].join(
+          "\n",
+        ),
+      ),
     ).toEqual({
       found: true,
       file: "多模态/简历.tex",
-      line: 42
+      line: 42,
     });
   });
 
@@ -131,14 +135,14 @@ describe("synctex", () => {
       return {
         code: 0,
         stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\n`,
-        stderr: "Column:1\n"
+        stderr: "Column:1\n",
       };
     };
 
     const result = await lookupSynctex(
       root,
       { resumeDir: "多模态", page: 2, x: 123.5, y: 456.25 },
-      runner
+      runner,
     );
 
     expect(calls).toEqual([
@@ -147,16 +151,16 @@ describe("synctex", () => {
         args: [
           "edit",
           "-o",
-          `2:123.5:456.25:${path.join(root, "多模态", "简历.pdf")}`
+          `2:123.5:456.25:${path.join(root, "多模态", "简历.pdf")}`,
         ],
-        cwd: path.join(root, "多模态")
-      }
+        cwd: path.join(root, "多模态"),
+      },
     ]);
     expect(result).toEqual({
       found: true,
       file: "多模态/简历.tex",
       line: 38,
-      column: 1
+      column: 1,
     });
   });
 
@@ -166,11 +170,15 @@ describe("synctex", () => {
     const runner: CommandRunner = async () => ({
       code: 1,
       stdout: "",
-      stderr: "no match"
+      stderr: "no match",
     });
 
     await expect(
-      lookupSynctex(root, { resumeDir: "多模态", page: 1, x: 10, y: 20 }, runner)
+      lookupSynctex(
+        root,
+        { resumeDir: "多模态", page: 1, x: 10, y: 20 },
+        runner,
+      ),
     ).resolves.toEqual({ found: false });
   });
 });

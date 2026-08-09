@@ -19,7 +19,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -36,9 +36,9 @@ function expectNoAbsolutePathLeak(body: unknown, root: string): void {
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -50,11 +50,11 @@ describe("app synctex route", () => {
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
-      stderr: ""
+      stderr: "",
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner })
+      createApp({ projectRoot: root, commandRunner: runner }),
     )
       .post("/api/synctex")
       .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })
@@ -64,7 +64,7 @@ describe("app synctex route", () => {
       found: true,
       file: "多模态/简历.tex",
       line: 38,
-      column: 1
+      column: 1,
     });
   });
 
@@ -83,7 +83,7 @@ describe("app synctex route", () => {
     { page: -1, x: 42, y: 84 },
     { page: 1.5, x: 42, y: 84 },
     { page: 1, x: -1, y: 84 },
-    { page: 1, x: 42, y: -1 }
+    { page: 1, x: 42, y: -1 },
   ])("returns 400 JSON for invalid coordinates %j", async (body) => {
     const root = await makeTempRoot();
     const response = await request(createApp({ projectRoot: root }))
@@ -101,11 +101,11 @@ describe("app synctex route", () => {
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
-      stderr: ""
+      stderr: "",
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner })
+      createApp({ projectRoot: root, commandRunner: runner }),
     )
       .post("/api/synctex")
       .send({ resumeDir: "多模态", page: 1, x: 42.5, y: 84.25 })
@@ -115,7 +115,7 @@ describe("app synctex route", () => {
       found: true,
       file: "多模态/简历.tex",
       line: 38,
-      column: 1
+      column: 1,
     });
   });
 
@@ -125,11 +125,11 @@ describe("app synctex route", () => {
     const runner: CommandRunner = async () => ({
       code: 1,
       stdout: "",
-      stderr: "no match"
+      stderr: "no match",
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner })
+      createApp({ projectRoot: root, commandRunner: runner }),
     )
       .post("/api/synctex")
       .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })
@@ -144,11 +144,11 @@ describe("app synctex route", () => {
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: "Input:/tmp/secret.tex\nLine:38\nColumn:1\n",
-      stderr: ""
+      stderr: "",
     });
 
     const response = await request(
-      createApp({ projectRoot: root, commandRunner: runner })
+      createApp({ projectRoot: root, commandRunner: runner }),
     )
       .post("/api/synctex")
       .send({ resumeDir: "多模态", page: 1, x: 42, y: 84 })

@@ -3,7 +3,7 @@ import {
   render,
   screen,
   waitFor,
-  within
+  within,
 } from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
@@ -15,7 +15,7 @@ type SuccessfulSynctexResult = Extract<SynctexResult, { found: true }>;
 function jsonResponse(body: unknown): Response {
   return {
     ok: true,
-    json: async () => body
+    json: async () => body,
   } as Response;
 }
 
@@ -25,32 +25,32 @@ const projectFixture = {
       name: "Backend Engineer",
       dir: "backend-engineer",
       texPath: "backend-engineer/main.tex",
-      pdfPath: "backend-engineer/main.pdf"
+      pdfPath: "backend-engineer/main.pdf",
     },
     {
       name: "Data Scientist",
       dir: "data-scientist",
       texPath: "data-scientist/main.tex",
-      pdfPath: "data-scientist/main.pdf"
-    }
+      pdfPath: "data-scientist/main.pdf",
+    },
   ],
   texFiles: [
     {
       path: "backend-engineer/main.tex",
       name: "main.tex",
-      dir: "backend-engineer"
+      dir: "backend-engineer",
     },
     {
       path: "backend-engineer/sections/experience.tex",
       name: "experience.tex",
-      dir: "backend-engineer/sections"
+      dir: "backend-engineer/sections",
     },
     {
       path: "data-scientist/main.tex",
       name: "main.tex",
-      dir: "data-scientist"
-    }
-  ]
+      dir: "data-scientist",
+    },
+  ],
 };
 
 function stubProjectFetch() {
@@ -85,13 +85,17 @@ describe("App", () => {
 
     const fileTree = await screen.findByRole("tree", { name: /tex files/i });
     expect(
-      within(fileTree).getByText("backend-engineer/main.tex")
+      within(fileTree).getByText("backend-engineer/main.tex"),
     ).toBeInTheDocument();
     expect(
-      within(fileTree).getByText("backend-engineer/sections/experience.tex")
+      within(fileTree).getByText("backend-engineer/sections/experience.tex"),
     ).toBeInTheDocument();
-    expect(within(fileTree).getByText("data-scientist/main.tex")).toBeInTheDocument();
-    expect(screen.queryByRole("tablist", { name: /resumes/i })).not.toBeInTheDocument();
+    expect(
+      within(fileTree).getByText("data-scientist/main.tex"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("tablist", { name: /resumes/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /compile/i })).toBeEnabled();
     expect(fetchMock).toHaveBeenCalledWith("/api/project");
   });
@@ -108,7 +112,7 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(
-        within(editorPane).getByText("data-scientist/main.tex")
+        within(editorPane).getByText("data-scientist/main.tex"),
       ).toBeInTheDocument();
     });
   });
@@ -119,11 +123,15 @@ describe("App", () => {
     render(<App />);
 
     const fileTree = await screen.findByRole("tree", { name: /tex files/i });
-    expect(within(fileTree).getByText("backend-engineer/main.tex")).toBeInTheDocument();
+    expect(
+      within(fileTree).getByText("backend-engineer/main.tex"),
+    ).toBeInTheDocument();
     fireEvent.click(within(fileTree).getByText("data-scientist/main.tex"));
 
     await waitFor(() => {
-      expect(screen.getAllByText("data-scientist/main.pdf").length).toBeGreaterThan(0);
+      expect(
+        screen.getAllByText("data-scientist/main.pdf").length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -133,7 +141,7 @@ describe("App", () => {
     render(<App />);
 
     const filesPane = await screen.findByRole("complementary", {
-      name: /project files/i
+      name: /project files/i,
     });
     const workspace = filesPane.closest(".workspace");
 
@@ -141,9 +149,11 @@ describe("App", () => {
 
     expect(filesPane).toHaveClass("is-collapsed");
     expect(workspace).toHaveClass("is-file-pane-collapsed");
-    expect(screen.queryByRole("tree", { name: /tex files/i })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /expand files/i })
+      screen.queryByRole("tree", { name: /tex files/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /expand files/i }),
     ).toBeInTheDocument();
   });
 
@@ -168,35 +178,35 @@ describe("App", () => {
           width,
           x: 0,
           y: 0,
-          toJSON: () => ({})
+          toJSON: () => ({}),
         };
-      }
+      },
     );
 
     render(<App />);
 
     const filesPane = await screen.findByRole("complementary", {
-      name: /project files/i
+      name: /project files/i,
     });
     fireEvent.click(screen.getByRole("button", { name: /collapse files/i }));
     const workspace = filesPane.closest(".workspace");
     const divider = screen.getByRole("separator", {
-      name: /resize editor and pdf panes/i
+      name: /resize editor and pdf panes/i,
     });
 
     fireEvent(
       divider,
-      new MouseEvent("pointerdown", { bubbles: true, clientX: 500 })
+      new MouseEvent("pointerdown", { bubbles: true, clientX: 500 }),
     );
     fireEvent(
       window,
-      new MouseEvent("pointermove", { bubbles: true, clientX: 684 })
+      new MouseEvent("pointermove", { bubbles: true, clientX: 684 }),
     );
     fireEvent(window, new MouseEvent("pointerup", { bubbles: true }));
 
     expect(workspace).toHaveStyle({
       "--editor-pane-fr": "0.675fr",
-      "--preview-pane-fr": "0.325fr"
+      "--preview-pane-fr": "0.325fr",
     });
   });
 
@@ -213,7 +223,7 @@ describe("App", () => {
     }
 
     expect(readSourceFile({ found: true, file: "main.tex", line: 12 })).toBe(
-      "MAIN.TEX"
+      "MAIN.TEX",
     );
 
     const pathCompatibility: SuccessfulSynctexResult = {
@@ -221,7 +231,7 @@ describe("App", () => {
       file: "main.tex",
       // @ts-expect-error `path` is not part of the public SyncTeX success shape.
       path: "main.tex",
-      line: 12
+      line: 12,
     };
     void pathCompatibility;
   });

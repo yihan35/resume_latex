@@ -41,6 +41,7 @@ export function summarizeLatexLog(log: string): string {
   const summary = [...selectedIndexes]
     .sort((left, right) => left - right)
     .map((index) => lines[index])
+    .filter((line): line is string => line !== undefined)
     .filter((line) => line.trim().length > 0)
     .join("\n");
 
@@ -55,7 +56,7 @@ async function fileStat(filePath: string): Promise<{
     const stats = await stat(filePath);
     return {
       mtimeMs: stats.mtimeMs,
-      size: stats.size
+      size: stats.size,
     };
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
@@ -81,7 +82,7 @@ export function sanitizeCompileLog(log: string, projectRoot: string): string {
 export async function compileResume(
   projectRoot: string,
   resumeDir: string,
-  runner: CommandRunner = runCommand
+  runner: CommandRunner = runCommand,
 ): Promise<CompileResult> {
   const startedAt = Date.now();
   const resumeDirectory = resolveProjectPath(projectRoot, resumeDir);
@@ -91,7 +92,7 @@ export async function compileResume(
   const result = await runner(
     "xelatex",
     ["-synctex=1", "-interaction=nonstopmode", "-halt-on-error", MAIN_TEX],
-    { cwd: resumeDirectory }
+    { cwd: resumeDirectory },
   );
   const pdfAfter = await fileStat(pdfAbsolutePath);
   const pdfCreatedOrModified =
@@ -110,6 +111,6 @@ export async function compileResume(
     pdfPath,
     logSummary: ok ? "" : summarizeLatexLog(combinedLog),
     stdout,
-    stderr
+    stderr,
   };
 }

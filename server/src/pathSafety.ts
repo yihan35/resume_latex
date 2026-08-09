@@ -1,7 +1,10 @@
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 
-function assertInsideProjectRoot(projectRoot: string, absolutePath: string): void {
+function assertInsideProjectRoot(
+  projectRoot: string,
+  absolutePath: string,
+): void {
   const resolvedRoot = path.resolve(projectRoot);
   const relativePath = path.relative(resolvedRoot, absolutePath);
 
@@ -16,7 +19,7 @@ function assertInsideProjectRoot(projectRoot: string, absolutePath: string): voi
 
 function assertExistingComponentsInsideProjectRoot(
   projectRoot: string,
-  absolutePath: string
+  absolutePath: string,
 ): void {
   const resolvedRoot = path.resolve(projectRoot);
   let realRoot: string;
@@ -46,7 +49,11 @@ function assertExistingComponentsInsideProjectRoot(
         assertInsideProjectRoot(realRoot, currentPath);
       }
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
         return;
       }
 
@@ -57,7 +64,7 @@ function assertExistingComponentsInsideProjectRoot(
 
 export function resolveProjectPath(
   projectRoot: string,
-  requestedPath: string
+  requestedPath: string,
 ): string {
   const resolvedRoot = path.resolve(projectRoot);
   const absolutePath = path.resolve(resolvedRoot, requestedPath);
@@ -70,7 +77,7 @@ export function resolveProjectPath(
 
 export function normalizeRelativePath(
   projectRoot: string,
-  absolutePath: string
+  absolutePath: string,
 ): string {
   const resolvedRoot = path.resolve(projectRoot);
   const resolvedPath = path.resolve(absolutePath);
@@ -83,7 +90,7 @@ export function normalizeRelativePath(
 
 export function resolveProjectTexPath(
   projectRoot: string,
-  requestedPath: string
+  requestedPath: string,
 ): string {
   const absolutePath = resolveProjectPath(projectRoot, requestedPath);
 

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   compileResume,
   summarizeLatexLog,
-  type CommandRunner
+  type CommandRunner,
 } from "./compiler.js";
 
 const tempRoots: string[] = [];
@@ -21,7 +21,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -30,9 +30,9 @@ async function writeProjectFile(
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -60,10 +60,10 @@ describe("compiler", () => {
           "-synctex=1",
           "-interaction=nonstopmode",
           "-halt-on-error",
-          "简历.tex"
+          "简历.tex",
         ],
-        cwd: path.join(root, "多模态")
-      }
+        cwd: path.join(root, "多模态"),
+      },
     ]);
     expect(result.ok).toBe(true);
     expect(result.pdfPath).toBe("多模态/简历.pdf");
@@ -81,9 +81,9 @@ describe("compiler", () => {
         "before",
         "! Undefined control sequence.",
         "l.12 \\badcommand",
-        "after"
+        "after",
       ].join("\n"),
-      stderr: ""
+      stderr: "",
     });
 
     const result = await compileResume(root, "多模态", runner);
@@ -100,7 +100,7 @@ describe("compiler", () => {
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: "compile exited without writing a pdf",
-      stderr: ""
+      stderr: "",
     });
 
     const result = await compileResume(root, "多模态", runner);
@@ -110,7 +110,7 @@ describe("compiler", () => {
 
   it("summarizes LaTeX log lines around error markers", () => {
     const summary = summarizeLatexLog(
-      ["context", "! Missing $ inserted.", "l.20 x", "next"].join("\n")
+      ["context", "! Missing $ inserted.", "l.20 x", "next"].join("\n"),
     );
 
     expect(summary).toContain("Missing $ inserted.");

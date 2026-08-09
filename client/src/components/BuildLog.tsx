@@ -1,16 +1,11 @@
 import type { CompileResult } from "../types";
 
 export type BuildLogStatus =
-  | "idle"
-  | "loading"
-  | "ready"
-  | "compiling"
-  | "success"
-  | "error";
+  "idle" | "loading" | "ready" | "compiling" | "success" | "error";
 
 interface BuildLogProps {
   status: BuildLogStatus;
-  error?: string;
+  error?: string | undefined;
   result?: CompileResult | null;
 }
 
@@ -20,7 +15,7 @@ const statusLabel: Record<BuildLogStatus, string> = {
   ready: "Ready",
   compiling: "Compiling",
   success: "Compile finished",
-  error: "Error"
+  error: "Error",
 };
 
 function buildOutputText(result: CompileResult) {
@@ -29,7 +24,7 @@ function buildOutputText(result: CompileResult) {
       ? `Summary\n${result.logSummary.trim()}`
       : "",
     result.stderr.trim().length > 0 ? `stderr\n${result.stderr.trim()}` : "",
-    result.stdout.trim().length > 0 ? `stdout\n${result.stdout.trim()}` : ""
+    result.stdout.trim().length > 0 ? `stdout\n${result.stdout.trim()}` : "",
   ]
     .filter((section) => section.length > 0)
     .join("\n\n");

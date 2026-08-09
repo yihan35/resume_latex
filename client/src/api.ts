@@ -6,7 +6,7 @@ import type {
   SaveFileRequest,
   SaveFileResponse,
   SynctexRequest,
-  SynctexResult
+  SynctexResult,
 } from "./types";
 
 interface ErrorResponse {
@@ -37,9 +37,9 @@ function jsonRequest(method: "POST" | "PUT", body: unknown): RequestInit {
   return {
     method,
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   };
 }
 
@@ -52,29 +52,23 @@ export function getFile(path: string): Promise<FileResponse> {
   return requestJson<FileResponse>(`/api/file?${query.toString()}`);
 }
 
-export function saveFile(
-  request: SaveFileRequest
-): Promise<SaveFileResponse> {
+export function saveFile(request: SaveFileRequest): Promise<SaveFileResponse> {
   return requestJson<SaveFileResponse>(
     "/api/file",
-    jsonRequest("PUT", request)
+    jsonRequest("PUT", request),
   );
 }
 
-export function compileResume(
-  request: CompileRequest
-): Promise<CompileResult> {
+export function compileResume(request: CompileRequest): Promise<CompileResult> {
   return requestJson<CompileResult>(
     "/api/compile",
-    jsonRequest("POST", request)
+    jsonRequest("POST", request),
   );
 }
 
-export function lookupSynctex(
-  request: SynctexRequest
-): Promise<SynctexResult> {
+export function lookupSynctex(request: SynctexRequest): Promise<SynctexResult> {
   return requestJson<SynctexResult>(
     "/api/synctex",
-    jsonRequest("POST", request)
+    jsonRequest("POST", request),
   );
 }

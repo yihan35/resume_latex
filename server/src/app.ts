@@ -1,7 +1,4 @@
-import express, {
-  type ErrorRequestHandler,
-  type Express
-} from "express";
+import express, { type ErrorRequestHandler, type Express } from "express";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
@@ -86,14 +83,14 @@ function isFileBody(body: unknown): body is { path: string; content: string } {
 
   const candidate = body as { path?: unknown; content?: unknown };
   return (
-    typeof candidate.path === "string" &&
-    typeof candidate.content === "string"
+    typeof candidate.path === "string" && typeof candidate.content === "string"
   );
 }
 
-function isCompileBody(
-  body: unknown
-): body is { resumeDir: string; currentFile?: { path: string; content: string } } {
+function isCompileBody(body: unknown): body is {
+  resumeDir: string;
+  currentFile?: { path: string; content: string };
+} {
   if (typeof body !== "object" || body === null) {
     return false;
   }
@@ -110,7 +107,7 @@ function isCompileBody(
 }
 
 function isSynctexBody(
-  body: unknown
+  body: unknown,
 ): body is { resumeDir: string; page: number; x: number; y: number } {
   if (typeof body !== "object" || body === null) {
     return false;
@@ -139,9 +136,26 @@ function isSynctexBody(
 
 const jsonParser = express.json({ limit: "1mb" });
 
-const jsonErrorHandler: ErrorRequestHandler = (error, _request, response, next) => {
-  const status = typeof error.status === "number" ? error.status : undefined;
-  const type = typeof error.type === "string" ? error.type : undefined;
+const jsonErrorHandler: ErrorRequestHandler = (
+  error: unknown,
+  _request,
+  response,
+  next,
+) => {
+  const details =
+    typeof error === "object" && error !== null ? error : undefined;
+  const status =
+    details !== undefined &&
+    "status" in details &&
+    typeof details.status === "number"
+      ? details.status
+      : undefined;
+  const type =
+    details !== undefined &&
+    "type" in details &&
+    typeof details.type === "string"
+      ? details.type
+      : undefined;
 
   if (status === 413 || type === "entity.too.large") {
     response.status(413).json({ error: "Request body too large" });
@@ -160,8 +174,9 @@ const fallbackErrorHandler: ErrorRequestHandler = (
   _error,
   _request,
   response,
-  _next
+  _next,
 ) => {
+  void _next;
   response.status(500).json({ error: "Internal server error" });
 };
 
@@ -174,7 +189,7 @@ export function createApp(options: AppOptions): Express {
     try {
       const [resumes, texFiles] = await Promise.all([
         discoverResumes(options.projectRoot),
-        discoverTexFiles(options.projectRoot)
+        discoverTexFiles(options.projectRoot),
       ]);
 
       response.json({ resumes, texFiles });
@@ -210,7 +225,7 @@ export function createApp(options: AppOptions): Express {
       await saveTexFile(
         options.projectRoot,
         request.body.path,
-        request.body.content
+        request.body.content,
       );
       response.json({ ok: true });
     } catch (error) {
@@ -230,14 +245,14 @@ export function createApp(options: AppOptions): Express {
         await saveTexFile(
           options.projectRoot,
           request.body.currentFile.path,
-          request.body.currentFile.content
+          request.body.currentFile.content,
         );
       }
 
       const result = await compileResume(
         options.projectRoot,
         request.body.resumeDir,
-        options.commandRunner
+        options.commandRunner,
       );
       response.json(result);
     } catch (error) {
@@ -256,7 +271,7 @@ export function createApp(options: AppOptions): Express {
       const result = await lookupSynctex(
         options.projectRoot,
         request.body,
-        options.commandRunner
+        options.commandRunner,
       );
       response.json(result);
     } catch (error) {

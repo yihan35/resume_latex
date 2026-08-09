@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 
@@ -13,7 +13,7 @@ interface TexEditorProps {
 
 function revealTargetLine(
   editor: MonacoEditor.IStandaloneCodeEditor,
-  targetLine: number
+  targetLine: number,
 ) {
   const targetPosition = { lineNumber: targetLine, column: 1 };
 
@@ -28,22 +28,25 @@ export function TexEditor({
   fontSize = 13,
   targetLine,
   targetLineRequestId,
-  onChange
+  onChange,
 }: TexEditorProps) {
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const lastRevealedRequestRef = useRef<number | null>(null);
 
-  function revealPendingTarget(editor: MonacoEditor.IStandaloneCodeEditor) {
-    if (
-      targetLine === null ||
-      lastRevealedRequestRef.current === targetLineRequestId
-    ) {
-      return;
-    }
+  const revealPendingTarget = useCallback(
+    (editor: MonacoEditor.IStandaloneCodeEditor) => {
+      if (
+        targetLine === null ||
+        lastRevealedRequestRef.current === targetLineRequestId
+      ) {
+        return;
+      }
 
-    lastRevealedRequestRef.current = targetLineRequestId;
-    revealTargetLine(editor, targetLine);
-  }
+      lastRevealedRequestRef.current = targetLineRequestId;
+      revealTargetLine(editor, targetLine);
+    },
+    [targetLine, targetLineRequestId],
+  );
 
   const handleMount: OnMount = (editor) => {
     editorRef.current = editor;
@@ -56,7 +59,7 @@ export function TexEditor({
     }
 
     revealPendingTarget(editorRef.current);
-  }, [targetLine, targetLineRequestId]);
+  }, [revealPendingTarget]);
 
   if (path === null) {
     return (
@@ -75,13 +78,14 @@ export function TexEditor({
         options={{
           ariaLabel: "LaTeX editor",
           automaticLayout: true,
-          fontFamily: '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
+          fontFamily:
+            '"SFMono-Regular", Consolas, "Liberation Mono", monospace',
           fontSize,
           lineNumbersMinChars: 4,
           minimap: { enabled: false },
           renderLineHighlight: "line",
           scrollBeyondLastLine: false,
-          wordWrap: "on"
+          wordWrap: "on",
         }}
         path={path}
         theme="vs"

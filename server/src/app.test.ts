@@ -18,7 +18,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -27,9 +27,9 @@ async function writeProjectFile(
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -56,14 +56,14 @@ describe("app", () => {
         name: "多模态",
         dir: "多模态",
         texPath: "多模态/简历.tex",
-        pdfPath: "多模态/简历.pdf"
-      }
+        pdfPath: "多模态/简历.pdf",
+      },
     ]);
     expect(response.body.texFiles).toEqual(
       expect.arrayContaining([
         { path: "resume_common.tex", name: "resume_common.tex", dir: "" },
-        { path: "多模态/简历.tex", name: "简历.tex", dir: "多模态" }
-      ])
+        { path: "多模态/简历.tex", name: "简历.tex", dir: "多模态" },
+      ]),
     );
     expect(response.body.texFiles).toHaveLength(2);
   });
@@ -79,7 +79,7 @@ describe("app", () => {
 
     expect(response.body).toEqual({
       path: "多模态/简历.tex",
-      content: "% existing\n"
+      content: "% existing\n",
     });
   });
 
@@ -93,7 +93,7 @@ describe("app", () => {
       .expect(200, { ok: true });
 
     await expect(
-      readFile(path.join(root, "多模态", "简历.tex"), "utf8")
+      readFile(path.join(root, "多模态", "简历.tex"), "utf8"),
     ).resolves.toBe("% after\n");
   });
 
@@ -164,10 +164,12 @@ describe("app", () => {
       .send({ path: "../secret.tex", content: "secret" })
       .expect(400);
 
-    expect(response.body.error).toMatch(/outside project root|Invalid file path/);
+    expect(response.body.error).toMatch(
+      /outside project root|Invalid file path/,
+    );
     expectNoAbsolutePathLeak(response.body, root);
     await expect(readFile(outsidePath, "utf8")).rejects.toMatchObject({
-      code: "ENOENT"
+      code: "ENOENT",
     });
   });
 });

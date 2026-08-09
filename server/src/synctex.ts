@@ -31,7 +31,7 @@ function parsePositiveInteger(value: string | undefined): number | undefined {
 
 export function parseSynctexEditOutput(
   projectRoot: string,
-  output: string
+  output: string,
 ): SynctexResult {
   const inputPath = firstFieldValue(output, "Input");
   const line = parsePositiveInteger(firstFieldValue(output, "Line"));
@@ -46,7 +46,7 @@ export function parseSynctexEditOutput(
       found: true,
       file: normalizeRelativePath(projectRoot, inputPath),
       line,
-      ...(column === undefined ? {} : { column })
+      ...(column === undefined ? {} : { column }),
     };
   } catch {
     return { found: false };
@@ -56,21 +56,17 @@ export function parseSynctexEditOutput(
 export async function lookupSynctex(
   projectRoot: string,
   input: { resumeDir: string; page: number; x: number; y: number },
-  runner: CommandRunner = runCommand
+  runner: CommandRunner = runCommand,
 ): Promise<SynctexResult> {
   const pdfAbsolutePath = resolveProjectPath(
     projectRoot,
-    path.join(input.resumeDir, MAIN_PDF)
+    path.join(input.resumeDir, MAIN_PDF),
   );
   const pdfDirectory = path.dirname(pdfAbsolutePath);
   const result = await runner(
     "synctex",
-    [
-      "edit",
-      "-o",
-      `${input.page}:${input.x}:${input.y}:${pdfAbsolutePath}`
-    ],
-    { cwd: pdfDirectory }
+    ["edit", "-o", `${input.page}:${input.x}:${input.y}:${pdfAbsolutePath}`],
+    { cwd: pdfDirectory },
   );
 
   if (result.code !== 0) {
@@ -79,6 +75,6 @@ export async function lookupSynctex(
 
   return parseSynctexEditOutput(
     projectRoot,
-    [result.stdout, result.stderr].filter(Boolean).join("\n")
+    [result.stdout, result.stderr].filter(Boolean).join("\n"),
   );
 }

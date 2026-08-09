@@ -8,7 +8,7 @@ const css = readFileSync(resolve(__dirname, "styles.css"), "utf8");
 function cssRule(selector: string) {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = css.match(
-    new RegExp(`(?:^|})\\s*${escapedSelector}\\s*\\{([^}]*)\\}`)
+    new RegExp(`(?:^|})\\s*${escapedSelector}\\s*\\{([^}]*)\\}`),
   );
 
   return match?.[1] ?? "";
@@ -18,7 +18,7 @@ describe("workspace layout CSS", () => {
   it("keeps the editor workspace inside the viewport so inner panes own scrolling", () => {
     expect(cssRule(".app-shell")).toContain("height: 100vh");
     expect(cssRule(".app-shell")).toContain(
-      "grid-template-rows: 52px minmax(0, 1fr)"
+      "grid-template-rows: 52px minmax(0, 1fr)",
     );
     expect(cssRule(".tex-editor")).toContain("height: 100%");
     expect(cssRule(".tex-editor")).toContain("overflow: hidden");
@@ -36,10 +36,10 @@ describe("workspace layout CSS", () => {
     expect(collapsedWorkspaceRule).toContain("44px");
     expect(collapsedWorkspaceRule).toContain("8px");
     expect(collapsedWorkspaceRule).toContain(
-      "minmax(0, var(--editor-pane-fr, 0.500fr))"
+      "minmax(0, var(--editor-pane-fr, 0.5fr))",
     );
     expect(collapsedWorkspaceRule).toContain(
-      "minmax(0, var(--preview-pane-fr, 0.500fr))"
+      "minmax(0, var(--preview-pane-fr, 0.5fr))",
     );
   });
 });

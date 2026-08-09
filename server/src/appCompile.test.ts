@@ -19,7 +19,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string | Buffer
+  content: string | Buffer,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -36,9 +36,9 @@ function expectNoAbsolutePathLeak(body: unknown, root: string): void {
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -58,15 +58,15 @@ describe("app compile routes", () => {
         resumeDir: "多模态",
         currentFile: {
           path: "多模态/简历.tex",
-          content: "% after\n"
-        }
+          content: "% after\n",
+        },
       })
       .expect(200);
 
     expect(compileResponse.body.ok).toBe(true);
     expect(compileResponse.body.pdfPath).toBe("多模态/简历.pdf");
     await expect(
-      readFile(path.join(root, "多模态", "简历.tex"), "utf8")
+      readFile(path.join(root, "多模态", "简历.tex"), "utf8"),
     ).resolves.toBe("% after\n");
 
     const pdfResponse = await request(app)
@@ -85,7 +85,7 @@ describe("app compile routes", () => {
     const runner: CommandRunner = async () => ({
       code: 1,
       stdout: "! Undefined control sequence.\nl.12 \\badcommand\n",
-      stderr: ""
+      stderr: "",
     });
     const app = createApp({ projectRoot: root, commandRunner: runner });
 
@@ -96,7 +96,7 @@ describe("app compile routes", () => {
 
     expect(compileResponse.body.ok).toBe(false);
     expect(compileResponse.body.logSummary).toContain(
-      "Undefined control sequence"
+      "Undefined control sequence",
     );
 
     const pdfResponse = await request(app)
@@ -115,9 +115,9 @@ describe("app compile routes", () => {
       stdout: [
         `${path.join(root, "多模态", "简历.tex")}:12: Undefined control sequence`,
         "! Undefined control sequence.",
-        "l.12 \\badcommand"
+        "l.12 \\badcommand",
       ].join("\n"),
-      stderr: `transcript written on /tmp/xelatex/build.log under ${root}`
+      stderr: `transcript written on /tmp/xelatex/build.log under ${root}`,
     });
     const app = createApp({ projectRoot: root, commandRunner: runner });
 
@@ -146,7 +146,7 @@ describe("app compile routes", () => {
       .post("/api/compile")
       .send({
         resumeDir: "多模态",
-        currentFile: { path: "../outside.tex", content: "secret" }
+        currentFile: { path: "../outside.tex", content: "secret" },
       })
       .expect(400);
 

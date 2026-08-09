@@ -1,4 +1,10 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PdfViewer } from "./PdfViewer";
@@ -7,17 +13,17 @@ const getDocumentMock = vi.hoisted(() => vi.fn());
 
 vi.mock("pdfjs-dist", () => ({
   getDocument: getDocumentMock,
-  GlobalWorkerOptions: {}
+  GlobalWorkerOptions: {},
 }));
 
 vi.mock("pdfjs-dist/build/pdf.worker.mjs?url", () => ({
-  default: "pdf.worker.mjs"
+  default: "pdf.worker.mjs",
 }));
 
 function makePdf(baseWidth = 200, baseHeight = 400) {
   const viewport = (scale: number) => ({
     width: baseWidth * scale,
-    height: baseHeight * scale
+    height: baseHeight * scale,
   });
 
   return {
@@ -26,9 +32,9 @@ function makePdf(baseWidth = 200, baseHeight = 400) {
       getViewport: ({ scale }: { scale: number }) => viewport(scale),
       render: vi.fn(() => ({
         cancel: vi.fn(),
-        promise: Promise.resolve()
-      }))
-    }))
+        promise: Promise.resolve(),
+      })),
+    })),
   };
 }
 
@@ -44,7 +50,7 @@ function deferred<T>() {
 function successfulDocument(baseWidth?: number, baseHeight?: number) {
   return {
     destroy: vi.fn(),
-    promise: Promise.resolve(makePdf(baseWidth, baseHeight))
+    promise: Promise.resolve(makePdf(baseWidth, baseHeight)),
   };
 }
 
@@ -58,9 +64,12 @@ describe("PdfViewer", () => {
     getDocumentMock.mockReturnValueOnce(successfulDocument());
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
-      setTransform: vi.fn()
+      setTransform: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
-    vi.spyOn(HTMLCanvasElement.prototype, "getBoundingClientRect").mockReturnValue({
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      "getBoundingClientRect",
+    ).mockReturnValue({
       bottom: 520,
       height: 520,
       left: 0,
@@ -69,11 +78,13 @@ describe("PdfViewer", () => {
       width: 260,
       x: 0,
       y: 0,
-      toJSON: () => ({})
+      toJSON: () => ({}),
     });
     const onPdfClick = vi.fn();
 
-    render(<PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={onPdfClick} />);
+    render(
+      <PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={onPdfClick} />,
+    );
 
     const canvas = await screen.findByLabelText("PDF page 1");
     await waitFor(() => expect(canvas).not.toHaveAttribute("hidden"));
@@ -87,13 +98,13 @@ describe("PdfViewer", () => {
     getDocumentMock.mockReturnValueOnce(successfulDocument(200, 400));
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
-      setTransform: vi.fn()
+      setTransform: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
     Object.defineProperty(HTMLElement.prototype, "clientWidth", {
       configurable: true,
       get() {
         return this.classList.contains("pdf-viewer") ? 500 : 0;
-      }
+      },
     });
 
     render(<PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={vi.fn()} />);
@@ -102,7 +113,9 @@ describe("PdfViewer", () => {
     await waitFor(() => expect(canvas).not.toHaveAttribute("hidden"));
 
     expect(canvas).toHaveStyle({ width: "500px" });
-    expect(screen.queryByRole("button", { name: /跳到底部/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /跳到底部/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("rerenders to fill the preview after its container is resized", async () => {
@@ -111,13 +124,13 @@ describe("PdfViewer", () => {
     getDocumentMock.mockReturnValue(successfulDocument(200, 400));
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
-      setTransform: vi.fn()
+      setTransform: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
     Object.defineProperty(HTMLElement.prototype, "clientWidth", {
       configurable: true,
       get() {
         return this.classList.contains("pdf-viewer") ? previewWidth : 0;
-      }
+      },
     });
     class ResizeObserverMock {
       constructor(callback: ResizeObserverCallback) {
@@ -140,10 +153,10 @@ describe("PdfViewer", () => {
       resizeCallback(
         [
           {
-            contentRect: { width: previewWidth }
-          } as ResizeObserverEntry
+            contentRect: { width: previewWidth },
+          } as ResizeObserverEntry,
         ],
-        {} as ResizeObserver
+        {} as ResizeObserver,
       );
     });
 
@@ -159,21 +172,23 @@ describe("PdfViewer", () => {
       .mockReturnValueOnce(successfulDocument())
       .mockReturnValueOnce({
         destroy: vi.fn(),
-        promise: missingPdfPromise
+        promise: missingPdfPromise,
       });
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
-      setTransform: vi.fn()
+      setTransform: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
 
     const { rerender } = render(
-      <PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={vi.fn()} />
+      <PdfViewer pdfPath="resume.pdf" version={1} onPdfClick={vi.fn()} />,
     );
 
     const canvas = await screen.findByLabelText("PDF page 1");
     await waitFor(() => expect(canvas).not.toHaveAttribute("hidden"));
 
-    rerender(<PdfViewer pdfPath="missing.pdf" version={2} onPdfClick={vi.fn()} />);
+    rerender(
+      <PdfViewer pdfPath="missing.pdf" version={2} onPdfClick={vi.fn()} />,
+    );
     rejectMissingPdf(new Error("missing PDF"));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("missing PDF");
@@ -182,31 +197,34 @@ describe("PdfViewer", () => {
 
   it("does not let a canceled old page render mutate the canvas", async () => {
     const delayedPage = deferred<{
-      getViewport: (input: { scale: number }) => { width: number; height: number };
+      getViewport: (input: { scale: number }) => {
+        width: number;
+        height: number;
+      };
       render: ReturnType<typeof vi.fn>;
     }>();
     const oldPdf = {
       destroy: vi.fn(async () => undefined),
-      getPage: vi.fn(async () => delayedPage.promise)
+      getPage: vi.fn(async () => delayedPage.promise),
     };
     const newPdf = makePdf();
     getDocumentMock
       .mockReturnValueOnce({
         destroy: vi.fn(),
-        promise: Promise.resolve(oldPdf)
+        promise: Promise.resolve(oldPdf),
       })
       .mockReturnValueOnce({
         destroy: vi.fn(),
-        promise: Promise.resolve(newPdf)
+        promise: Promise.resolve(newPdf),
       });
     const setTransform = vi.fn();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
       clearRect: vi.fn(),
-      setTransform
+      setTransform,
     } as unknown as CanvasRenderingContext2D);
 
     const { rerender } = render(
-      <PdfViewer pdfPath="old.pdf" version={1} onPdfClick={vi.fn()} />
+      <PdfViewer pdfPath="old.pdf" version={1} onPdfClick={vi.fn()} />,
     );
 
     rerender(<PdfViewer pdfPath="new.pdf" version={2} onPdfClick={vi.fn()} />);
@@ -215,12 +233,12 @@ describe("PdfViewer", () => {
     delayedPage.resolve({
       getViewport: ({ scale }: { scale: number }) => ({
         width: 200 * scale,
-        height: 400 * scale
+        height: 400 * scale,
       }),
       render: vi.fn(() => ({
         cancel: vi.fn(),
-        promise: Promise.resolve()
-      }))
+        promise: Promise.resolve(),
+      })),
     });
 
     await new Promise((resolve) => setTimeout(resolve, 0));

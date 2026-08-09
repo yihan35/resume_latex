@@ -8,7 +8,7 @@ const editorMock = vi.hoisted(() => ({
   revealLineNearTop: vi.fn(),
   revealPositionInCenter: vi.fn(),
   setPosition: vi.fn(),
-  setScrollTop: vi.fn()
+  setScrollTop: vi.fn(),
 }));
 
 const editorPropsMock = vi.hoisted(() => vi.fn());
@@ -28,7 +28,7 @@ vi.mock("@monaco-editor/react", () => ({
     onChange,
     onMount,
     options,
-    value
+    value,
   }: {
     onChange?: (value: string | undefined) => void;
     onMount?: (editor: typeof editorMock) => void;
@@ -48,7 +48,7 @@ vi.mock("@monaco-editor/react", () => ({
         value={value ?? ""}
       />
     );
-  }
+  },
 }));
 
 describe("TexEditor", () => {
@@ -67,15 +67,15 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={null}
         targetLineRequestId={0}
-      />
+      />,
     );
 
     expect(editorPropsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         options: expect.objectContaining({
-          automaticLayout: true
-        })
-      })
+          automaticLayout: true,
+        }),
+      }),
     );
   });
 
@@ -88,15 +88,15 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={null}
         targetLineRequestId={0}
-      />
+      />,
     );
 
     expect(editorPropsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         options: expect.objectContaining({
-          fontSize: 16
-        })
-      })
+          fontSize: 16,
+        }),
+      }),
     );
   });
 
@@ -108,7 +108,7 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={null}
         targetLineRequestId={0}
-      />
+      />,
     );
 
     rerender(
@@ -118,16 +118,16 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={86}
         targetLineRequestId={1}
-      />
+      />,
     );
 
     expect(editorMock.setPosition).toHaveBeenCalledWith({
       column: 1,
-      lineNumber: 86
+      lineNumber: 86,
     });
     expect(editorMock.revealPositionInCenter).toHaveBeenCalledWith({
       column: 1,
-      lineNumber: 86
+      lineNumber: 86,
     });
     expect(editorMock.revealLineNearTop).not.toHaveBeenCalled();
     expect(editorMock.setScrollTop).not.toHaveBeenCalled();
@@ -142,7 +142,7 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={86}
         targetLineRequestId={1}
-      />
+      />,
     );
 
     rerender(
@@ -152,7 +152,7 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={86}
         targetLineRequestId={2}
-      />
+      />,
     );
 
     expect(editorMock.revealPositionInCenter).toHaveBeenCalledTimes(2);
@@ -168,7 +168,7 @@ describe("TexEditor", () => {
         path="resume.tex"
         targetLine={51}
         targetLineRequestId={1}
-      />
+      />,
     );
 
     expect(editorMock.revealPositionInCenter).not.toHaveBeenCalled();
@@ -179,11 +179,11 @@ describe("TexEditor", () => {
 
     expect(editorMock.setPosition).toHaveBeenCalledWith({
       column: 1,
-      lineNumber: 51
+      lineNumber: 51,
     });
     expect(editorMock.revealPositionInCenter).toHaveBeenCalledWith({
       column: 1,
-      lineNumber: 51
+      lineNumber: 51,
     });
     expect(editorMock.focus).toHaveBeenCalled();
   });

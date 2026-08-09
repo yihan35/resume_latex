@@ -17,7 +17,7 @@ async function makeTempRoot(): Promise<string> {
 async function writeProjectFile(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void> {
   const filePath = path.join(root, relativePath);
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -26,9 +26,9 @@ async function writeProjectFile(
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -38,7 +38,7 @@ describe("file store", () => {
     await writeProjectFile(root, "多模态/简历.tex", "% existing resume\n");
 
     await expect(readTexFile(root, "多模态/简历.tex")).resolves.toBe(
-      "% existing resume\n"
+      "% existing resume\n",
     );
   });
 
@@ -49,7 +49,7 @@ describe("file store", () => {
     await saveTexFile(root, "多模态/简历.tex", "% after\n");
 
     await expect(
-      readFile(path.join(root, "多模态", "简历.tex"), "utf8")
+      readFile(path.join(root, "多模态", "简历.tex"), "utf8"),
     ).resolves.toBe("% after\n");
   });
 
@@ -57,7 +57,7 @@ describe("file store", () => {
     const root = await makeTempRoot();
 
     await expect(saveTexFile(root, "多模态/简历.pdf", "nope")).rejects.toThrow(
-      /Only \.tex files/
+      /Only \.tex files/,
     );
   });
 });

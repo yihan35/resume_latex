@@ -6,7 +6,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent,
-  type PointerEvent
+  type PointerEvent,
 } from "react";
 
 import { compileResume, getFile, getProject, lookupSynctex } from "./api";
@@ -31,7 +31,9 @@ function isFileInResume(filePath: string, resume: ResumeInfo) {
 }
 
 function defaultTexPathForResume(project: ProjectResponse, resumeDir: string) {
-  const resume = project.resumes.find((candidate) => candidate.dir === resumeDir);
+  const resume = project.resumes.find(
+    (candidate) => candidate.dir === resumeDir,
+  );
 
   if (resume === undefined) {
     return project.texFiles[0]?.path ?? null;
@@ -58,14 +60,14 @@ function errorMessage(error: unknown, fallback: string) {
 
 function normalizeOpenFile(
   requestedPath: string,
-  response: { path?: string; content?: string }
+  response: { path?: string; content?: string },
 ): CurrentFileDraft {
   return {
     path:
       typeof response.path === "string" && response.path.length > 0
         ? response.path
         : requestedPath,
-    content: typeof response.content === "string" ? response.content : ""
+    content: typeof response.content === "string" ? response.content : "",
   };
 }
 
@@ -92,14 +94,14 @@ async function readTexFile(path: string): Promise<CurrentFileDraft> {
 export function App() {
   const [project, setProject] = useState<ProjectResponse>({
     resumes: [],
-    texFiles: []
+    texFiles: [],
   });
   const [loadState, setLoadState] = useState<ProjectLoadState>("loading");
   const [loadError, setLoadError] = useState<string>();
   const [fileLoadState, setFileLoadState] = useState<FileLoadState>("idle");
   const [fileError, setFileError] = useState<string>();
   const [selectedResumeDir, setSelectedResumeDir] = useState<string | null>(
-    null
+    null,
   );
   const [isFilePaneCollapsed, setIsFilePaneCollapsed] = useState(false);
   const [paneSplit, setPaneSplit] = useState(0.5);
@@ -135,7 +137,7 @@ export function App() {
     async (
       path: string,
       nextTargetLine: number | null = null,
-      isCurrentRequest: () => boolean = () => true
+      isCurrentRequest: () => boolean = () => true,
     ) => {
       const requestId = fileRequestIdRef.current + 1;
       fileRequestIdRef.current = requestId;
@@ -179,7 +181,7 @@ export function App() {
         return false;
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -237,7 +239,7 @@ export function App() {
         }
 
         setLoadError(
-          error instanceof Error ? error.message : "Unable to load project"
+          error instanceof Error ? error.message : "Unable to load project",
         );
         setLoadState("error");
       }
@@ -254,31 +256,35 @@ export function App() {
     () =>
       project.resumes.find((resume) => resume.dir === selectedResumeDir) ??
       null,
-    [project.resumes, selectedResumeDir]
+    [project.resumes, selectedResumeDir],
   );
   const selectedFile = useMemo(
-    () => project.texFiles.find((file) => file.path === selectedTexPath) ?? null,
-    [project.texFiles, selectedTexPath]
+    () =>
+      project.texFiles.find((file) => file.path === selectedTexPath) ?? null,
+    [project.texFiles, selectedTexPath],
   );
   const editorTitle =
     selectedFile?.name ?? openFile?.path.split("/").at(-1) ?? "Editor";
   const editorPath =
-    fileLoadState === "loading" ? selectedTexPath : openFile?.path ?? selectedTexPath;
+    fileLoadState === "loading"
+      ? selectedTexPath
+      : (openFile?.path ?? selectedTexPath);
   const openFileLineCount =
     openFile === null ? null : countLines(openFile.content);
-  const previewPdfPath = selectedResume?.pdfPath ?? compileResult?.pdfPath ?? null;
+  const previewPdfPath =
+    selectedResume?.pdfPath ?? compileResult?.pdfPath ?? null;
   const buildStatus: BuildLogStatus =
     compileState === "compiling"
       ? "compiling"
-    : loadState === "error" || compileState === "error"
-      ? "error"
-    : loadState === "loading" || fileLoadState === "loading"
-        ? "loading"
-        : fileLoadState === "error" && compileState === "idle"
-          ? "error"
-        : compileState === "success"
-          ? "success"
-          : "ready";
+      : loadState === "error" || compileState === "error"
+        ? "error"
+        : loadState === "loading" || fileLoadState === "loading"
+          ? "loading"
+          : fileLoadState === "error" && compileState === "idle"
+            ? "error"
+            : compileState === "success"
+              ? "success"
+              : "ready";
   const visibleFileError = compileState === "idle" ? fileError : undefined;
   const visibleError = loadError ?? compileError ?? visibleFileError;
   const canCompile =
@@ -290,9 +296,9 @@ export function App() {
     () =>
       ({
         "--editor-pane-fr": `${paneSplit.toFixed(3)}fr`,
-        "--preview-pane-fr": `${(1 - paneSplit).toFixed(3)}fr`
+        "--preview-pane-fr": `${(1 - paneSplit).toFixed(3)}fr`,
       }) as CSSProperties,
-    [paneSplit]
+    [paneSplit],
   );
 
   const updatePaneSplitFromPointer = useCallback((clientX: number) => {
@@ -337,7 +343,7 @@ export function App() {
       window.addEventListener("pointermove", handlePointerMove);
       window.addEventListener("pointerup", handlePointerUp, { once: true });
     },
-    [updatePaneSplitFromPointer]
+    [updatePaneSplitFromPointer],
   );
 
   function handlePaneResizeKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -349,9 +355,9 @@ export function App() {
     setPaneSplit((currentSplit) =>
       Number(
         clampPaneSplit(
-          currentSplit + (event.key === "ArrowRight" ? 0.05 : -0.05)
-        ).toFixed(3)
-      )
+          currentSplit + (event.key === "ArrowRight" ? 0.05 : -0.05),
+        ).toFixed(3),
+      ),
     );
   }
 
@@ -374,13 +380,13 @@ export function App() {
     setOpenFile((currentOpenFile) =>
       currentOpenFile === null
         ? currentOpenFile
-        : { ...currentOpenFile, content }
+        : { ...currentOpenFile, content },
     );
   }
 
   function handleAdjustTexFontSize(delta: number) {
     setTexFontSize((currentFontSize) =>
-      clampTexFontSize(currentFontSize + delta)
+      clampTexFontSize(currentFontSize + delta),
     );
   }
 
@@ -398,13 +404,10 @@ export function App() {
     try {
       const result = await compileResume({
         resumeDir: selectedResume.dir,
-        ...(openFile === null ? {} : { currentFile: openFile })
+        ...(openFile === null ? {} : { currentFile: openFile }),
       });
 
-      if (
-        !isMountedRef.current ||
-        requestId !== compileRequestIdRef.current
-      ) {
+      if (!isMountedRef.current || requestId !== compileRequestIdRef.current) {
         return;
       }
 
@@ -419,10 +422,7 @@ export function App() {
         setActivityMessage("Compile finished with errors.");
       }
     } catch (error) {
-      if (
-        !isMountedRef.current ||
-        requestId !== compileRequestIdRef.current
-      ) {
+      if (!isMountedRef.current || requestId !== compileRequestIdRef.current) {
         return;
       }
 
@@ -450,7 +450,7 @@ export function App() {
         ? stableOpenFile === null
           ? "idle"
           : "ready"
-        : currentState
+        : currentState,
     );
     if (stableOpenFile !== null) {
       setSelectedTexPath(stableOpenFile.path);
@@ -468,13 +468,10 @@ export function App() {
         resumeDir: selectedResume.dir,
         page,
         x,
-        y
+        y,
       });
 
-      if (
-        !isMountedRef.current ||
-        requestId !== synctexRequestIdRef.current
-      ) {
+      if (!isMountedRef.current || requestId !== synctexRequestIdRef.current) {
         return;
       }
 
@@ -491,7 +488,7 @@ export function App() {
       const opened = await loadTexFile(
         result.file,
         result.line,
-        () => requestId === synctexRequestIdRef.current
+        () => requestId === synctexRequestIdRef.current,
       );
 
       if (
@@ -502,10 +499,7 @@ export function App() {
         setActivityMessage(`Opened ${result.file} source line ${result.line}.`);
       }
     } catch (error) {
-      if (
-        !isMountedRef.current ||
-        requestId !== synctexRequestIdRef.current
-      ) {
+      if (!isMountedRef.current || requestId !== synctexRequestIdRef.current) {
         return;
       }
 
@@ -523,7 +517,7 @@ export function App() {
         <button
           className="compile-button"
           disabled={!canCompile}
-          onClick={handleCompile}
+          onClick={() => void handleCompile()}
           type="button"
         >
           编译当前简历
@@ -657,7 +651,7 @@ export function App() {
               </span>
             </div>
             <PdfViewer
-              onPdfClick={handlePdfClick}
+              onPdfClick={(page, x, y) => void handlePdfClick(page, x, y)}
               pdfPath={previewPdfPath}
               version={pdfVersion}
             />

@@ -21,7 +21,7 @@ function appendCappedChunk(
   chunks: Buffer[],
   chunk: Buffer,
   capturedBytes: number,
-  maxOutputBytes: number
+  maxOutputBytes: number,
 ): number {
   const remainingBytes = maxOutputBytes - capturedBytes;
 
@@ -41,7 +41,7 @@ function appendCappedChunk(
 export function runCommand(
   command: string,
   args: string[],
-  options: CommandOptions
+  options: CommandOptions,
 ): Promise<CommandResult> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { cwd: options.cwd });
@@ -80,7 +80,7 @@ export function runCommand(
         stdoutChunks,
         chunk,
         stdoutBytes,
-        maxOutputBytes
+        maxOutputBytes,
       );
     });
 
@@ -89,7 +89,7 @@ export function runCommand(
         stderrChunks,
         chunk,
         stderrBytes,
-        maxOutputBytes
+        maxOutputBytes,
       );
     });
 
@@ -97,12 +97,9 @@ export function runCommand(
       resolveOnce({
         code: 127,
         stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-        stderr: [
-          Buffer.concat(stderrChunks).toString("utf8"),
-          error.message
-        ]
+        stderr: [Buffer.concat(stderrChunks).toString("utf8"), error.message]
           .filter(Boolean)
-          .join("\n")
+          .join("\n"),
       });
     });
 
@@ -113,11 +110,9 @@ export function runCommand(
         : "";
 
       resolveOnce({
-        code: timedOut ? TIMEOUT_EXIT_CODE : code ?? 1,
+        code: timedOut ? TIMEOUT_EXIT_CODE : (code ?? 1),
         stdout: Buffer.concat(stdoutChunks).toString("utf8"),
-        stderr: [stderr, timeoutMessage]
-          .filter(Boolean)
-          .join("\n")
+        stderr: [stderr, timeoutMessage].filter(Boolean).join("\n"),
       });
     });
   });

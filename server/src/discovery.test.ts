@@ -21,9 +21,9 @@ async function touch(filePath: string): Promise<void> {
 
 afterEach(async () => {
   await Promise.all(
-    tempRoots.splice(0).map((tempRoot) =>
-      rm(tempRoot, { recursive: true, force: true })
-    )
+    tempRoots
+      .splice(0)
+      .map((tempRoot) => rm(tempRoot, { recursive: true, force: true })),
   );
 });
 
@@ -39,8 +39,8 @@ describe("discovery", () => {
         name: "多模态",
         dir: "多模态",
         texPath: "多模态/简历.tex",
-        pdfPath: "多模态/简历.pdf"
-      }
+        pdfPath: "多模态/简历.pdf",
+      },
     ]);
   });
 
@@ -58,7 +58,7 @@ describe("discovery", () => {
     await expect(discoverTexFiles(root)).resolves.toEqual([
       { path: "agent/简历.tex", name: "简历.tex", dir: "agent" },
       { path: "docs/notes.tex", name: "notes.tex", dir: "docs" },
-      { path: "resume_common.tex", name: "resume_common.tex", dir: "" }
+      { path: "resume_common.tex", name: "resume_common.tex", dir: "" },
     ]);
   });
 });

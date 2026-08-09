@@ -9,7 +9,7 @@ describe("processRunner", () => {
     const result = await runCommand(
       "resume-editor-clearly-not-a-real-command",
       [],
-      { cwd: process.cwd() }
+      { cwd: process.cwd() },
     );
 
     expect(result.code).toBe(127);
@@ -20,7 +20,7 @@ describe("processRunner", () => {
     const result = await runCommand(
       process.execPath,
       ["-e", "process.stdout.write('out'); process.stderr.write('err');"],
-      { cwd: process.cwd() }
+      { cwd: process.cwd() },
     );
 
     expect(result.code).toBe(0);
@@ -32,7 +32,7 @@ describe("processRunner", () => {
     const result = await runCommand(
       process.execPath,
       ["-e", "setTimeout(() => process.stdout.write('late'), 1000);"],
-      { cwd: process.cwd(), timeoutMs: 25 }
+      { cwd: process.cwd(), timeoutMs: 25 },
     );
 
     expect(result.code).not.toBe(0);
@@ -44,11 +44,8 @@ describe("processRunner", () => {
 
     const result = await runCommand(
       process.execPath,
-      [
-        "-e",
-        "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"
-      ],
-      { cwd: process.cwd(), timeoutMs: 25 }
+      ["-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000);"],
+      { cwd: process.cwd(), timeoutMs: 25 },
     );
 
     expect(Date.now() - startedAt).toBeLessThan(1500);
@@ -61,9 +58,9 @@ describe("processRunner", () => {
       process.execPath,
       [
         "-e",
-        "process.on('SIGTERM', () => process.exit(0)); setInterval(() => {}, 1000);"
+        "process.on('SIGTERM', () => process.exit(0)); setInterval(() => {}, 1000);",
       ],
-      { cwd: process.cwd(), timeoutMs: 25 }
+      { cwd: process.cwd(), timeoutMs: 25 },
     );
 
     expect(result.code).not.toBe(0);
@@ -75,9 +72,9 @@ describe("processRunner", () => {
       process.execPath,
       [
         "-e",
-        "process.stdout.write('a'.repeat(100)); process.stderr.write('b'.repeat(100));"
+        "process.stdout.write('a'.repeat(100)); process.stderr.write('b'.repeat(100));",
       ],
-      { cwd: process.cwd(), maxOutputBytes: 16 }
+      { cwd: process.cwd(), maxOutputBytes: 16 },
     );
 
     expect(Buffer.byteLength(result.stdout)).toBeLessThanOrEqual(16);

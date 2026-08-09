@@ -3,11 +3,11 @@ import { defineConfig } from "vite";
 
 const clientPort = Number.parseInt(
   process.env.RESUME_EDITOR_CLIENT_PORT ?? "5173",
-  10
+  10,
 );
 const serverPort = Number.parseInt(
   process.env.RESUME_EDITOR_PORT ?? "43871",
-  10
+  10,
 );
 
 export default defineConfig({
@@ -16,7 +16,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: clientPort,
     proxy: {
-      "/api": `http://127.0.0.1:${serverPort}`
-    }
-  }
+      "/api": `http://127.0.0.1:${serverPort}`,
+    },
+  },
 });

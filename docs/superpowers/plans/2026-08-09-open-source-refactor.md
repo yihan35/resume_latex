@@ -97,6 +97,7 @@
 ### Task 1: Establish a Sanitized Source Baseline
 
 **Files:**
+
 - Create: `.gitignore`
 - Create: `.gitattributes`
 - Delete: `docs/superpowers/specs/2026-06-03-resume-latex-editor-design.md`
@@ -105,6 +106,7 @@
 - Remove generated working directories after confirming their names: `.resume-editor/`, `dist/`, `dist-server/`
 
 **Interfaces:**
+
 - Consumes: approved design at `docs/superpowers/specs/2026-08-09-open-source-refactor-design.md`.
 - Produces: a reproducible, privacy-reviewed baseline commit containing current application behavior but no generated or internal-path documentation.
 
@@ -204,6 +206,7 @@ Expected: the commit contains the public application baseline and exclusions.
 ### Task 2: Modernize the Toolchain and Package Metadata
 
 **Files:**
+
 - Create: `.nvmrc`
 - Create: `.prettierignore`
 - Create: `eslint.config.js`
@@ -218,6 +221,7 @@ Expected: the commit contains the public application baseline and exclusions.
 - Delete: `scripts/stop.sh`
 
 **Interfaces:**
+
 - Consumes: the Task 1 source baseline.
 - Produces: Node `>=22.13.0` metadata; cross-platform development/build/check scripts; strict shared TypeScript settings.
 
@@ -334,14 +338,25 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["node_modules/**", "dist/**", "dist-server/**", "coverage/**", ".resume-editor/**"] },
+  {
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      "dist-server/**",
+      "coverage/**",
+      ".resume-editor/**",
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
-      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname }
-    }
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
   },
   {
     files: ["client/**/*.{ts,tsx}"],
@@ -349,13 +364,13 @@ export default tseslint.config(
     plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
     rules: {
       ...reactHooks.configs.flat.recommended.rules,
-      ...reactRefresh.configs.vite.rules
-    }
+      ...reactRefresh.configs.vite.rules,
+    },
   },
   {
     files: ["server/**/*.ts", "scripts/**/*.{js,mjs,ts}", "*.config.ts"],
-    languageOptions: { globals: globals.node }
-  }
+    languageOptions: { globals: globals.node },
+  },
 );
 ```
 
@@ -411,6 +426,7 @@ git commit -m "build: modernize development toolchain"
 ### Task 3: Add Shared Contracts, Validated Configuration, and Multi-Entry Discovery
 
 **Files:**
+
 - Create: `shared/contracts.ts`
 - Create: `server/src/config/appConfig.ts`
 - Create: `server/src/config/appConfig.test.ts`
@@ -427,6 +443,7 @@ git commit -m "build: modernize development toolchain"
 - Delete: `server/src/discovery.test.ts`
 
 **Interfaces:**
+
 - Consumes: strict shared TypeScript inclusion from Task 2.
 - Produces: `AppConfig`, `createAppConfig`, shared API contracts, `discoverResumes`, and `discoverTexFiles`.
 
@@ -490,10 +507,20 @@ export type ApiErrorCode =
 export interface ApiErrorResponse {
   error: { code: ApiErrorCode; message: string };
 }
-export interface FileResponse { path: string; content: string }
-export interface SaveFileRequest { path: string; content: string }
-export interface SaveFileResponse { ok: true }
-export interface CompileRequest { resumeId: string }
+export interface FileResponse {
+  path: string;
+  content: string;
+}
+export interface SaveFileRequest {
+  path: string;
+  content: string;
+}
+export interface SaveFileResponse {
+  ok: true;
+}
+export interface CompileRequest {
+  resumeId: string;
+}
 export interface CompileResult {
   ok: boolean;
   elapsedMs: number;
@@ -540,9 +567,11 @@ Resolve relative roots against `cwd`, validate with `statSync`, require ports
 ```ts
 export async function discoverResumes(
   projectRoot: string,
-  entryFiles: readonly string[]
+  entryFiles: readonly string[],
 ): Promise<ResumeInfo[]>;
-export async function discoverTexFiles(projectRoot: string): Promise<TexFileInfo[]>;
+export async function discoverTexFiles(
+  projectRoot: string,
+): Promise<TexFileInfo[]>;
 ```
 
 Use the first entry match, derive PDF from entry stem, use relative directory as
@@ -586,6 +615,7 @@ git commit -m "feat: support configurable resume discovery"
 ### Task 4: Harden Paths and Add Atomic TeX Saving
 
 **Files:**
+
 - Create: `server/src/domain/pathSafety.ts`
 - Create: `server/src/domain/pathSafety.test.ts`
 - Create: `server/src/domain/fileStore.ts`
@@ -597,6 +627,7 @@ git commit -m "feat: support configurable resume discovery"
 - Delete: `server/src/fileStore.test.ts`
 
 **Interfaces:**
+
 - Consumes: relative TeX paths and project root from Task 3.
 - Produces: `resolveProjectPath`, `normalizeRelativePath`, `resolveProjectTexPath`, `readTexFile`, and `saveTexFileAtomically`.
 
@@ -627,9 +658,18 @@ Expected: FAIL because the domain modules and atomic-save export are absent.
 - [ ] **Step 3: Implement lexical and realpath containment**
 
 ```ts
-export function resolveProjectPath(projectRoot: string, requestedPath: string): string;
-export function normalizeRelativePath(projectRoot: string, absolutePath: string): string;
-export function resolveProjectTexPath(projectRoot: string, requestedPath: string): string;
+export function resolveProjectPath(
+  projectRoot: string,
+  requestedPath: string,
+): string;
+export function normalizeRelativePath(
+  projectRoot: string,
+  absolutePath: string,
+): string;
+export function resolveProjectTexPath(
+  projectRoot: string,
+  requestedPath: string,
+): string;
 ```
 
 Reject POSIX absolute paths, Windows drive/UNC forms on every host, lexical `..`
@@ -639,11 +679,14 @@ escape, and any existing symlink whose real path leaves the real root.
 - [ ] **Step 4: Implement atomic saving**
 
 ```ts
-export async function readTexFile(root: string, relativePath: string): Promise<string>;
+export async function readTexFile(
+  root: string,
+  relativePath: string,
+): Promise<string>;
 export async function saveTexFileAtomically(
   root: string,
   relativePath: string,
-  content: string
+  content: string,
 ): Promise<void>;
 ```
 
@@ -675,6 +718,7 @@ git commit -m "refactor: harden atomic file operations"
 ### Task 5: Refactor Process Execution, Compilation Locks, and SyncTeX
 
 **Files:**
+
 - Create: `server/src/process/runCommand.ts`
 - Create: `server/src/process/runCommand.test.ts`
 - Create: `server/src/domain/compiler.ts`
@@ -690,6 +734,7 @@ git commit -m "refactor: harden atomic file operations"
 - Delete: `server/src/synctex.test.ts`
 
 **Interfaces:**
+
 - Consumes: `AppConfig`, `ResumeInfo`, and path helpers.
 - Produces: `runCommand`, `CompileService`, `parseSynctexEditOutput`, and `lookupSynctex`.
 
@@ -707,7 +752,7 @@ export interface CommandResult {
 export type CommandRunner = (
   command: string,
   args: readonly string[],
-  options: { cwd: string; timeoutMs?: number; maxOutputBytes?: number }
+  options: { cwd: string; timeoutMs?: number; maxOutputBytes?: number },
 ) => Promise<CommandResult>;
 ```
 
@@ -732,7 +777,7 @@ Expected: FAIL because moved modules and `CompileService` are absent.
 spawn(command, [...args], {
   cwd: options.cwd,
   shell: false,
-  stdio: ["ignore", "pipe", "pipe"]
+  stdio: ["ignore", "pipe", "pipe"],
 });
 ```
 
@@ -791,6 +836,7 @@ Expected: all tests pass and no request value reaches a shell.
 ### Task 6: Modularize HTTP Routes and Serve Production Assets
 
 **Files:**
+
 - Create: `server/src/http/apiError.ts`
 - Create: `server/src/http/apiError.test.ts`
 - Create: `server/src/http/validation.ts`
@@ -809,6 +855,7 @@ Expected: all tests pass and no request value reaches a shell.
 - Modify: `server/src/appSynctex.test.ts`
 
 **Interfaces:**
+
 - Consumes: config and domain services from Tasks 3–5.
 - Produces: `ApiError`, `toApiErrorResponse`, focused routers, `/api/health`, `createApp`, and production SPA fallback.
 
@@ -925,6 +972,7 @@ file exceeds 250 lines.
 ### Task 7: Build the Workspace Reducer and Abortable API Client
 
 **Files:**
+
 - Create: `client/src/lib/apiClient.ts`
 - Create: `client/src/lib/apiClient.test.ts`
 - Create: `client/src/features/workspace/types.ts`
@@ -940,6 +988,7 @@ file exceeds 250 lines.
 - Delete: `client/src/types.ts`
 
 **Interfaces:**
+
 - Consumes: shared contracts and modular API from Tasks 3 and 6.
 - Produces: `ApiClient`, `ApiClientError`, `WorkspaceState`, `WorkspaceAction`, reducer, selectors, and `useWorkspace`.
 
@@ -949,9 +998,15 @@ file exceeds 250 lines.
 export interface ApiClient {
   getProject(signal?: AbortSignal): Promise<ProjectResponse>;
   getFile(path: string, signal?: AbortSignal): Promise<FileResponse>;
-  saveFile(input: SaveFileRequest, signal?: AbortSignal): Promise<SaveFileResponse>;
+  saveFile(
+    input: SaveFileRequest,
+    signal?: AbortSignal,
+  ): Promise<SaveFileResponse>;
   compile(input: CompileRequest, signal?: AbortSignal): Promise<CompileResult>;
-  lookupSynctex(input: SynctexRequest, signal?: AbortSignal): Promise<SynctexResult>;
+  lookupSynctex(
+    input: SynctexRequest,
+    signal?: AbortSignal,
+  ): Promise<SynctexResult>;
 }
 ```
 
@@ -1057,6 +1112,7 @@ git commit -m "refactor: centralize workspace state"
 ### Task 8: Modularize the Client and Lazy-Load PDF.js
 
 **Files:**
+
 - Create: `client/src/app/App.tsx`
 - Create: `client/src/app/ErrorBoundary.tsx`
 - Create: `client/src/app/main.tsx`
@@ -1083,6 +1139,7 @@ git commit -m "refactor: centralize workspace state"
 - Delete: old editor/PDF component files and `client/src/styles.css`
 
 **Interfaces:**
+
 - Consumes: `useWorkspace` from Task 7.
 - Produces: composition-only `App`, focused panes, accessible error boundary, lazy `renderFirstPdfPage`, and split styles.
 
@@ -1121,7 +1178,7 @@ Expected: FAIL because feature modules are absent.
 ```ts
 const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
   import("pdfjs-dist"),
-  import("pdfjs-dist/build/pdf.worker.mjs?url")
+  import("pdfjs-dist/build/pdf.worker.mjs?url"),
 ]);
 GlobalWorkerOptions.workerSrc = worker.default;
 ```
@@ -1160,6 +1217,7 @@ JavaScript chunk is below 500 kB, and Vite prints no chunk-size warning.
 ### Task 9: Add Privacy Automation, Documentation, and GitHub Maintenance
 
 **Files:**
+
 - Create: `scripts/privacy-check.mjs`
 - Create: `scripts/privacy-check.test.ts`
 - Create: `README.zh-CN.md`
@@ -1177,6 +1235,7 @@ JavaScript chunk is below 500 kB, and Vite prints no chunk-size warning.
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Consumes: complete fictional example and runtime commands.
 - Produces: `npm run privacy:check`, bilingual docs, governance, CI, Dependabot, and three fictional workflow images.
 
@@ -1269,12 +1328,14 @@ Expected: all checks pass and every image contains fictional sample data only.
 ### Task 10: Enforce Coverage, Audit the Release, and Push `main`
 
 **Files:**
+
 - Modify: `vitest.config.ts`
 - Modify tests under `client/src/**` and `server/src/**` only for uncovered specified behavior
 - Inspect: every tracked file and complete commit range
 - Push: `main` to `git@github.com:yihan35/resume_latex.git`
 
 **Interfaces:**
+
 - Consumes: all prior tasks and empty configured origin.
 - Produces: enforced coverage, verified release commit, matching local/remote `main`, and passing GitHub Actions.
 

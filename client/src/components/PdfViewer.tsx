@@ -3,13 +3,14 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type MouseEvent
+  type MouseEvent,
 } from "react";
 import {
   getDocument,
   GlobalWorkerOptions,
   type PDFDocumentLoadingTask,
-  type RenderTask
+  type PDFDocumentProxy,
+  type RenderTask,
 } from "pdfjs-dist";
 import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
 
@@ -37,7 +38,9 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderMetricsRef = useRef<RenderMetrics | null>(null);
-  const [state, setState] = useState<PdfState>(pdfPath === null ? "empty" : "loading");
+  const [state, setState] = useState<PdfState>(
+    pdfPath === null ? "empty" : "loading",
+  );
   const [error, setError] = useState<string>();
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -52,7 +55,7 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     function updateContainerWidth(width: number) {
       const nextWidth = Math.round(width);
       setContainerWidth((currentWidth) =>
-        currentWidth === nextWidth ? currentWidth : nextWidth
+        currentWidth === nextWidth ? currentWidth : nextWidth,
       );
     }
 
@@ -63,7 +66,9 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     }
 
     const observer = new ResizeObserver((entries) => {
-      updateContainerWidth(entries[0]?.contentRect.width ?? container.clientWidth);
+      updateContainerWidth(
+        entries[0]?.contentRect.width ?? container.clientWidth,
+      );
     });
     observer.observe(container);
 
@@ -74,9 +79,6 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
 
   useEffect(() => {
     if (pdfPath === null) {
-      setState("empty");
-      setError(undefined);
-      renderMetricsRef.current = null;
       return;
     }
 
@@ -103,32 +105,36 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
 
       const query = new URLSearchParams({
         path: currentPdfPath,
-        v: String(version)
+        v: String(version),
       });
-      loadingTask = getDocument(`/api/pdf?${query.toString()}`);
-      const pdf = await loadingTask.promise;
+      const task = getDocument({ url: `/api/pdf?${query.toString()}` });
+      loadingTask = task;
+      const pdf: PDFDocumentProxy = await task.promise;
 
       if (cancelled) {
-        await pdf.destroy();
+        await task.destroy();
         return;
       }
 
       const page = await pdf.getPage(1);
 
       if (cancelled) {
-        await pdf.destroy();
+        await task.destroy();
         return;
       }
 
       const baseViewport = page.getViewport({ scale: 1 });
-      const availableWidth = Math.max(260, containerWidth || container.clientWidth);
+      const availableWidth = Math.max(
+        260,
+        containerWidth || container.clientWidth,
+      );
       const scale = availableWidth / baseViewport.width;
       const viewport = page.getViewport({ scale });
       const outputScale = window.devicePixelRatio || 1;
       const context = canvas.getContext("2d");
 
       if (cancelled) {
-        await pdf.destroy();
+        await task.destroy();
         return;
       }
 
@@ -143,15 +149,15 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
       context.setTransform(outputScale, 0, 0, outputScale, 0, 0);
       context.clearRect(0, 0, viewport.width, viewport.height);
 
-      renderTask = page.render({ canvasContext: context, viewport });
+      renderTask = page.render({ canvas, canvasContext: context, viewport });
       await renderTask.promise;
-      await pdf.destroy();
+      await task.destroy();
 
       if (!cancelled) {
         renderMetricsRef.current = {
           scale,
           viewportWidth: viewport.width,
-          viewportHeight: viewport.height
+          viewportHeight: viewport.height,
         };
         setState("ready");
       }
@@ -165,8 +171,8 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
       setError(
         getErrorMessage(
           caughtError,
-          "PDF is not available. Compile the resume to generate it."
-        )
+          "PDF is not available. Compile the resume to generate it.",
+        ),
       );
       setState("error");
     });
@@ -186,8 +192,10 @@ export function PdfViewer({ pdfPath, version, onPdfClick }: PdfViewerProps) {
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
-    const viewportX = ((event.clientX - rect.left) / rect.width) * metrics.viewportWidth;
-    const viewportY = ((event.clientY - rect.top) / rect.height) * metrics.viewportHeight;
+    const viewportX =
+      ((event.clientX - rect.left) / rect.width) * metrics.viewportWidth;
+    const viewportY =
+      ((event.clientY - rect.top) / rect.height) * metrics.viewportHeight;
     onPdfClick(1, viewportX / metrics.scale, viewportY / metrics.scale);
   }
 

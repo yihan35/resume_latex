@@ -9,7 +9,7 @@ interface TexFileTreeProps {
 export function TexFileTree({
   files,
   selectedPath,
-  onSelect
+  onSelect,
 }: TexFileTreeProps) {
   if (files.length === 0) {
     return <p className="pane-empty">No TeX files found.</p>;

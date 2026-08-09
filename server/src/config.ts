@@ -1,12 +1,12 @@
 import path from "node:path";
 
 export const PROJECT_ROOT = path.resolve(
-  process.env.RESUME_PROJECT_ROOT ?? path.join(process.cwd(), "..")
+  process.env.RESUME_PROJECT_ROOT ?? path.join(process.cwd(), ".."),
 );
 
 export const SERVER_PORT = Number.parseInt(
   process.env.RESUME_EDITOR_PORT ?? "43871",
-  10
+  10,
 );
 
 export const MAIN_TEX = "简历.tex";
@@ -19,5 +19,5 @@ export const EXCLUDED_DIRS = new Set([
   "dist",
   "dist-server",
   "out",
-  "output"
+  "output",
 ]);
