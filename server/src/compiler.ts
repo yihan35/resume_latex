@@ -1,9 +1,11 @@
 import { stat } from "node:fs/promises";
 import path from "node:path";
 
-import { MAIN_PDF, MAIN_TEX } from "./config.js";
 import { normalizeRelativePath, resolveProjectPath } from "./pathSafety.js";
 import { runCommand } from "./processRunner.js";
+
+const LEGACY_MAIN_TEX = "简历.tex";
+const LEGACY_MAIN_PDF = "简历.pdf";
 
 export type CommandRunner = typeof runCommand;
 
@@ -86,12 +88,17 @@ export async function compileResume(
 ): Promise<CompileResult> {
   const startedAt = Date.now();
   const resumeDirectory = resolveProjectPath(projectRoot, resumeDir);
-  const pdfAbsolutePath = path.join(resumeDirectory, MAIN_PDF);
+  const pdfAbsolutePath = path.join(resumeDirectory, LEGACY_MAIN_PDF);
   const pdfPath = normalizeRelativePath(projectRoot, pdfAbsolutePath);
   const pdfBefore = await fileStat(pdfAbsolutePath);
   const result = await runner(
     "xelatex",
-    ["-synctex=1", "-interaction=nonstopmode", "-halt-on-error", MAIN_TEX],
+    [
+      "-synctex=1",
+      "-interaction=nonstopmode",
+      "-halt-on-error",
+      LEGACY_MAIN_TEX,
+    ],
     { cwd: resumeDirectory },
   );
   const pdfAfter = await fileStat(pdfAbsolutePath);

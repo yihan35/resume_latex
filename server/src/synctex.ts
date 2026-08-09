@@ -1,9 +1,10 @@
 import path from "node:path";
 
-import { MAIN_PDF } from "./config.js";
 import type { CommandRunner } from "./compiler.js";
 import { normalizeRelativePath, resolveProjectPath } from "./pathSafety.js";
 import { runCommand } from "./processRunner.js";
+
+const LEGACY_MAIN_PDF = "简历.pdf";
 
 export interface SynctexResult {
   found: boolean;
@@ -60,7 +61,7 @@ export async function lookupSynctex(
 ): Promise<SynctexResult> {
   const pdfAbsolutePath = resolveProjectPath(
     projectRoot,
-    path.join(input.resumeDir, MAIN_PDF),
+    path.join(input.resumeDir, LEGACY_MAIN_PDF),
   );
   const pdfDirectory = path.dirname(pdfAbsolutePath);
   const result = await runner(

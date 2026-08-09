@@ -22,15 +22,17 @@ function jsonResponse(body: unknown): Response {
 const projectFixture = {
   resumes: [
     {
+      id: "backend-engineer",
       name: "Backend Engineer",
       dir: "backend-engineer",
-      texPath: "backend-engineer/main.tex",
+      entryPath: "backend-engineer/main.tex",
       pdfPath: "backend-engineer/main.pdf",
     },
     {
+      id: "data-scientist",
       name: "Data Scientist",
       dir: "data-scientist",
-      texPath: "data-scientist/main.tex",
+      entryPath: "data-scientist/main.tex",
       pdfPath: "data-scientist/main.pdf",
     },
   ],

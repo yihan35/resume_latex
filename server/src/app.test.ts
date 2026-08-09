@@ -53,9 +53,10 @@ describe("app", () => {
 
     expect(response.body.resumes).toEqual([
       {
+        id: "多模态",
         name: "多模态",
         dir: "多模态",
-        texPath: "多模态/简历.tex",
+        entryPath: "多模态/简历.tex",
         pdfPath: "多模态/简历.pdf",
       },
     ]);

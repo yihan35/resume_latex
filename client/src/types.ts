@@ -1,34 +1,13 @@
-export interface ResumeInfo {
-  name: string;
-  dir: string;
-  texPath: string;
-  pdfPath: string;
-}
+export type {
+  FileResponse,
+  ProjectResponse,
+  ResumeInfo,
+  SaveFileRequest,
+  SaveFileResponse,
+  TexFileInfo,
+} from "../../shared/contracts";
 
-export interface TexFileInfo {
-  path: string;
-  name: string;
-  dir: string;
-}
-
-export interface ProjectResponse {
-  resumes: ResumeInfo[];
-  texFiles: TexFileInfo[];
-}
-
-export interface FileResponse {
-  path: string;
-  content: string;
-}
-
-export interface SaveFileRequest {
-  path: string;
-  content: string;
-}
-
-export interface SaveFileResponse {
-  ok: true;
-}
+import type { CompileResult, SynctexResult } from "../../shared/contracts";
 
 export interface CurrentFileDraft {
   path: string;
@@ -40,15 +19,6 @@ export interface CompileRequest {
   currentFile?: CurrentFileDraft;
 }
 
-export interface CompileResult {
-  ok: boolean;
-  elapsedMs: number;
-  pdfPath: string;
-  logSummary: string;
-  stdout: string;
-  stderr: string;
-}
-
 export interface SynctexRequest {
   resumeDir: string;
   page: number;
@@ -56,11 +26,4 @@ export interface SynctexRequest {
   y: number;
 }
 
-export type SynctexResult =
-  | { found: false }
-  | {
-      found: true;
-      file: string;
-      line: number;
-      column?: number;
-    };
+export type { CompileResult, SynctexResult };

@@ -3,15 +3,18 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 
 import { compileResume, type CommandRunner } from "./compiler.js";
-import { discoverResumes, discoverTexFiles } from "./discovery.js";
+import { discoverResumes, discoverTexFiles } from "./domain/discovery.js";
 import { readTexFile, saveTexFile } from "./fileStore.js";
 import { resolveProjectPath } from "./pathSafety.js";
 import { lookupSynctex } from "./synctex.js";
 
 interface AppOptions {
   projectRoot: string;
+  entryFiles?: readonly string[];
   commandRunner?: CommandRunner;
 }
+
+const defaultEntryFiles = ["resume.tex", "main.tex", "简历.tex"];
 
 interface HttpErrorBody {
   status: number;
@@ -188,7 +191,10 @@ export function createApp(options: AppOptions): Express {
   app.get("/api/project", async (_request, response, next) => {
     try {
       const [resumes, texFiles] = await Promise.all([
-        discoverResumes(options.projectRoot),
+        discoverResumes(
+          options.projectRoot,
+          options.entryFiles ?? defaultEntryFiles,
+        ),
         discoverTexFiles(options.projectRoot),
       ]);
 

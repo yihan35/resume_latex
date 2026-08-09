@@ -1,34 +1,30 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { EXCLUDED_DIRS, MAIN_PDF, MAIN_TEX } from "./config.js";
-import { normalizeRelativePath } from "./pathSafety.js";
+import type { ResumeInfo, TexFileInfo } from "../../../shared/contracts.js";
 
-export interface ResumeInfo {
-  name: string;
-  dir: string;
-  texPath: string;
-  pdfPath: string;
-}
-
-export interface TexFileInfo {
-  path: string;
-  name: string;
-  dir: string;
-}
-
+const EXCLUDED_DIRS = new Set([
+  "node_modules",
+  "build",
+  "coverage",
+  "dist",
+  "dist-server",
+  "out",
+  "output",
+]);
 const collator = new Intl.Collator("zh-CN");
 
-function sortByPath<T extends { path: string }>(items: T[]): T[] {
-  return items.sort((left, right) => collator.compare(left.path, right.path));
+function toRelativePath(projectRoot: string, absolutePath: string): string {
+  return path.relative(projectRoot, absolutePath).split(path.sep).join("/");
 }
 
-function shouldSkipDirectory(dirName: string): boolean {
-  return dirName.startsWith(".") || EXCLUDED_DIRS.has(dirName);
+function shouldSkipDirectory(name: string): boolean {
+  return name.startsWith(".") || EXCLUDED_DIRS.has(name);
 }
 
 export async function discoverResumes(
   projectRoot: string,
+  entryFiles: readonly string[],
 ): Promise<ResumeInfo[]> {
   const resolvedRoot = path.resolve(projectRoot);
   const entries = await readdir(resolvedRoot, { withFileTypes: true });
@@ -40,21 +36,27 @@ export async function discoverResumes(
     }
 
     const directoryPath = path.join(resolvedRoot, entry.name);
-    const childEntries = await readdir(directoryPath, { withFileTypes: true });
+    const children = await readdir(directoryPath, { withFileTypes: true });
+    const childNames = new Set(
+      children.filter((child) => child.isFile()).map((child) => child.name),
+    );
+    const entryFile = entryFiles.find((candidate) => childNames.has(candidate));
 
-    if (
-      !childEntries.some((child) => child.isFile() && child.name === MAIN_TEX)
-    ) {
+    if (entryFile === undefined) {
       continue;
     }
 
-    const dir = normalizeRelativePath(resolvedRoot, directoryPath);
+    const dir = toRelativePath(resolvedRoot, directoryPath);
+    const entryPath = `${dir}/${entryFile}`;
+    const extension = path.extname(entryFile);
+    const pdfName = `${entryFile.slice(0, -extension.length)}.pdf`;
 
     resumes.push({
+      id: dir,
       name: entry.name,
       dir,
-      texPath: `${dir}/${MAIN_TEX}`,
-      pdfPath: `${dir}/${MAIN_PDF}`,
+      entryPath,
+      pdfPath: `${dir}/${pdfName}`,
     });
   }
 
@@ -85,13 +87,12 @@ export async function discoverTexFiles(
       }
 
       if (entry.isFile() && path.extname(entry.name) === ".tex") {
-        const relativePath = normalizeRelativePath(resolvedRoot, childPath);
-        const relativeDir = path.posix.dirname(relativePath);
-
+        const relativePath = toRelativePath(resolvedRoot, childPath);
+        const dir = path.posix.dirname(relativePath);
         files.push({
           path: relativePath,
           name: entry.name,
-          dir: relativeDir === "." ? "" : relativeDir,
+          dir: dir === "." ? "" : dir,
         });
       }
     }
@@ -99,5 +100,5 @@ export async function discoverTexFiles(
 
   await walk(resolvedRoot);
 
-  return sortByPath(files);
+  return files.sort((left, right) => collator.compare(left.path, right.path));
 }

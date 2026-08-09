@@ -24,7 +24,7 @@ const MAX_TEX_FONT_SIZE = 20;
 
 function isFileInResume(filePath: string, resume: ResumeInfo) {
   return (
-    filePath === resume.texPath ||
+    filePath === resume.entryPath ||
     filePath === resume.dir ||
     filePath.startsWith(`${resume.dir}/`)
   );
@@ -40,9 +40,9 @@ function defaultTexPathForResume(project: ProjectResponse, resumeDir: string) {
   }
 
   return (
-    project.texFiles.find((file) => file.path === resume.texPath)?.path ??
+    project.texFiles.find((file) => file.path === resume.entryPath)?.path ??
     project.texFiles.find((file) => isFileInResume(file.path, resume))?.path ??
-    resume.texPath
+    resume.entryPath
   );
 }
 
