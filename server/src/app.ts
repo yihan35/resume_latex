@@ -2,15 +2,18 @@ import express, { type ErrorRequestHandler, type Express } from "express";
 import { access } from "node:fs/promises";
 import path from "node:path";
 
-import { compileResume, type CommandRunner } from "./compiler.js";
+import { CompileService } from "./domain/compiler.js";
 import { discoverResumes, discoverTexFiles } from "./domain/discovery.js";
 import { readTexFile, saveTexFileAtomically } from "./domain/fileStore.js";
 import { resolveProjectPath } from "./domain/pathSafety.js";
-import { lookupSynctex } from "./synctex.js";
+import { lookupSynctex } from "./domain/synctex.js";
+import type { CommandRunner } from "./process/runCommand.js";
 
 interface AppOptions {
   projectRoot: string;
   entryFiles?: readonly string[];
+  latexCommand?: string;
+  synctexCommand?: string;
   commandRunner?: CommandRunner;
 }
 
@@ -185,16 +188,27 @@ const fallbackErrorHandler: ErrorRequestHandler = (
 
 export function createApp(options: AppOptions): Express {
   const app = express();
+  const entryFiles = options.entryFiles ?? defaultEntryFiles;
+  const compiler = new CompileService({
+    projectRoot: options.projectRoot,
+    latexCommand: options.latexCommand ?? "xelatex",
+    ...(options.commandRunner === undefined
+      ? {}
+      : { runner: options.commandRunner }),
+  });
+
+  async function findResume(resumeDir: string) {
+    resolveProjectPath(options.projectRoot, resumeDir);
+    const resumes = await discoverResumes(options.projectRoot, entryFiles);
+    return resumes.find((resume) => resume.dir === resumeDir);
+  }
 
   app.use(jsonParser);
 
   app.get("/api/project", async (_request, response, next) => {
     try {
       const [resumes, texFiles] = await Promise.all([
-        discoverResumes(
-          options.projectRoot,
-          options.entryFiles ?? defaultEntryFiles,
-        ),
+        discoverResumes(options.projectRoot, entryFiles),
         discoverTexFiles(options.projectRoot),
       ]);
 
@@ -255,11 +269,11 @@ export function createApp(options: AppOptions): Express {
         );
       }
 
-      const result = await compileResume(
-        options.projectRoot,
-        request.body.resumeDir,
-        options.commandRunner,
-      );
+      const resume = await findResume(request.body.resumeDir);
+      if (resume === undefined) {
+        throw new Error("Resume not found");
+      }
+      const result = await compiler.compile(resume);
       response.json(result);
     } catch (error) {
       const responseBody = compileError(error);
@@ -274,11 +288,21 @@ export function createApp(options: AppOptions): Express {
     }
 
     try {
-      const result = await lookupSynctex(
-        options.projectRoot,
-        request.body,
-        options.commandRunner,
-      );
+      const resume = await findResume(request.body.resumeDir);
+      if (resume === undefined) {
+        throw new Error("Resume not found");
+      }
+      const result = await lookupSynctex({
+        projectRoot: options.projectRoot,
+        synctexCommand: options.synctexCommand ?? "synctex",
+        resume,
+        page: request.body.page,
+        x: request.body.x,
+        y: request.body.y,
+        ...(options.commandRunner === undefined
+          ? {}
+          : { runner: options.commandRunner }),
+      });
       response.json(result);
     } catch (error) {
       if (errorMessage(error) === "Requested path is outside project root") {

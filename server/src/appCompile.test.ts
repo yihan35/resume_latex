@@ -6,7 +6,7 @@ import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app.js";
-import type { CommandRunner } from "./compiler.js";
+import type { CommandRunner } from "./process/runCommand.js";
 
 const tempRoots: string[] = [];
 
@@ -45,10 +45,10 @@ afterEach(async () => {
 describe("app compile routes", () => {
   it("saves the current file before compiling and serves the generated PDF", async () => {
     const root = await makeTempRoot();
-    await writeProjectFile(root, "多模态/简历.tex", "% before\n");
+    await writeProjectFile(root, "多模态/resume.tex", "% before\n");
     const runner: CommandRunner = async (_command, _args, options) => {
-      await writeFile(path.join(options.cwd, "简历.pdf"), "%PDF-1.7\n");
-      return { code: 0, stdout: "compiled", stderr: "" };
+      await writeFile(path.join(options.cwd, "resume.pdf"), "%PDF-1.7\n");
+      return { code: 0, stdout: "compiled", stderr: "", timedOut: false };
     };
     const app = createApp({ projectRoot: root, commandRunner: runner });
 
@@ -57,21 +57,21 @@ describe("app compile routes", () => {
       .send({
         resumeDir: "多模态",
         currentFile: {
-          path: "多模态/简历.tex",
+          path: "多模态/resume.tex",
           content: "% after\n",
         },
       })
       .expect(200);
 
     expect(compileResponse.body.ok).toBe(true);
-    expect(compileResponse.body.pdfPath).toBe("多模态/简历.pdf");
+    expect(compileResponse.body.pdfPath).toBe("多模态/resume.pdf");
     await expect(
-      readFile(path.join(root, "多模态", "简历.tex"), "utf8"),
+      readFile(path.join(root, "多模态", "resume.tex"), "utf8"),
     ).resolves.toBe("% after\n");
 
     const pdfResponse = await request(app)
       .get("/api/pdf")
-      .query({ path: "多模态/简历.pdf" })
+      .query({ path: "多模态/resume.pdf" })
       .expect(200);
 
     expect(pdfResponse.headers["content-type"]).toMatch(/application\/pdf/);
@@ -86,6 +86,7 @@ describe("app compile routes", () => {
       code: 1,
       stdout: "! Undefined control sequence.\nl.12 \\badcommand\n",
       stderr: "",
+      timedOut: false,
     });
     const app = createApp({ projectRoot: root, commandRunner: runner });
 
@@ -118,6 +119,7 @@ describe("app compile routes", () => {
         "l.12 \\badcommand",
       ].join("\n"),
       stderr: `transcript written on /tmp/xelatex/build.log under ${root}`,
+      timedOut: false,
     });
     const app = createApp({ projectRoot: root, commandRunner: runner });
 

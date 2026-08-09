@@ -6,7 +6,7 @@ import request from "supertest";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app.js";
-import type { CommandRunner } from "./compiler.js";
+import type { CommandRunner } from "./process/runCommand.js";
 
 const tempRoots: string[] = [];
 
@@ -51,6 +51,7 @@ describe("app synctex route", () => {
       code: 0,
       stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
       stderr: "",
+      timedOut: false,
     });
 
     const response = await request(
@@ -102,6 +103,7 @@ describe("app synctex route", () => {
       code: 0,
       stdout: `Input:${path.join(root, "多模态", "简历.tex")}\nLine:38\nColumn:1\n`,
       stderr: "",
+      timedOut: false,
     });
 
     const response = await request(
@@ -122,10 +124,12 @@ describe("app synctex route", () => {
   it("returns not found when synctex exits nonzero", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
+    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
     const runner: CommandRunner = async () => ({
       code: 1,
       stdout: "",
       stderr: "no match",
+      timedOut: false,
     });
 
     const response = await request(
@@ -141,10 +145,12 @@ describe("app synctex route", () => {
   it("does not leak absolute paths from outside source results", async () => {
     const root = await makeTempRoot();
     await writeProjectFile(root, "多模态/简历.pdf", "%PDF-1.7\n");
+    await writeProjectFile(root, "多模态/简历.tex", "% resume\n");
     const runner: CommandRunner = async () => ({
       code: 0,
       stdout: "Input:/tmp/secret.tex\nLine:38\nColumn:1\n",
       stderr: "",
+      timedOut: false,
     });
 
     const response = await request(

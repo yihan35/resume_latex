@@ -5,6 +5,8 @@ const config = createAppConfig();
 const app = createApp({
   projectRoot: config.projectRoot,
   entryFiles: config.entryFiles,
+  latexCommand: config.latexCommand,
+  synctexCommand: config.synctexCommand,
 });
 
 app.listen(config.serverPort, "127.0.0.1", () => {
