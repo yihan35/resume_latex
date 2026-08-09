@@ -16,6 +16,21 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
+      include: ["client/src/**/*.{ts,tsx}", "server/src/**/*.ts"],
+      exclude: [
+        "**/*.test.{ts,tsx}",
+        "client/src/testSetup.ts",
+        "client/src/main.tsx",
+        "client/src/app/main.tsx",
+        "client/src/features/workspace/types.ts",
+        "server/src/index.ts",
+      ],
+      thresholds: {
+        statements: 80,
+        branches: 75,
+        functions: 80,
+        lines: 80,
+      },
     },
   },
 });
