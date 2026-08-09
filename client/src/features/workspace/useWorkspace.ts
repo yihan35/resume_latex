@@ -58,6 +58,11 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
   const compileIdRef = useRef(0);
   const synctexIdRef = useRef(0);
   const saveIdRef = useRef(0);
+  const saveOperationRef = useRef<{
+    controller: AbortController;
+    path: string;
+    requestId: number;
+  } | null>(null);
   const selectionIdRef = useRef(0);
   const lastReadyFileRef = useRef<string | null>(null);
   const controllers = useRef({
@@ -204,36 +209,50 @@ export function useWorkspace(options: { api?: ApiClient } = {}) {
     const draft = selectCurrentDraft(stateRef.current);
     if (draft === undefined || draft.content === draft.savedContent)
       return true;
-    controllers.current.save?.abort();
+    const previousSave = saveOperationRef.current;
+    previousSave?.controller.abort();
+    if (previousSave !== null) {
+      dispatch({
+        type: "saveCancelled",
+        path: previousSave.path,
+        requestId: previousSave.requestId,
+      });
+    }
     const controller = new AbortController();
     controllers.current.save = controller;
     const requestId = saveIdRef.current + 1;
     saveIdRef.current = requestId;
     const content = draft.content;
+    saveOperationRef.current = { controller, path: draft.path, requestId };
     dispatch({ type: "saveStarted", path: draft.path, requestId });
     try {
       await apiRef.current.saveFile(
         { path: draft.path, content },
         controller.signal,
       );
-      if (controller.signal.aborted || requestId !== saveIdRef.current)
-        return false;
-      dispatch({ type: "saveSucceeded", path: draft.path, requestId, content });
-      return true;
-    } catch (error) {
-      if (isAbort(controller, error)) {
-        if (requestId === saveIdRef.current) {
-          dispatch({ type: "saveCancelled", path: draft.path, requestId });
-        }
+      if (controller.signal.aborted || requestId !== saveIdRef.current) {
+        dispatch({ type: "saveCancelled", path: draft.path, requestId });
         return false;
       }
-      if (requestId !== saveIdRef.current) return false;
+      dispatch({ type: "saveSucceeded", path: draft.path, requestId, content });
+      if (saveOperationRef.current?.requestId === requestId) {
+        saveOperationRef.current = null;
+      }
+      return true;
+    } catch (error) {
+      if (isAbort(controller, error) || requestId !== saveIdRef.current) {
+        dispatch({ type: "saveCancelled", path: draft.path, requestId });
+        return false;
+      }
       dispatch({
         type: "saveFailed",
         path: draft.path,
         requestId,
         error: message(error, "Unable to save TeX file"),
       });
+      if (saveOperationRef.current?.requestId === requestId) {
+        saveOperationRef.current = null;
+      }
       return false;
     }
   }, [dispatch]);

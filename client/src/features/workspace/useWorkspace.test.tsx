@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ApiClient } from "../../lib/apiClient";
+import { selectCanSave } from "./selectors";
 import { useWorkspace } from "./useWorkspace";
 
 const project = {
@@ -185,6 +186,60 @@ describe("useWorkspace", () => {
     await waitFor(() => expect(getFile).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(result.current.state.selectedTexPath).toBe("backend/other.tex"),
+    );
+  });
+
+  it("returns an aborted first draft save to dirty idle while the next draft saves", async () => {
+    let resolveSecondSave!: () => void;
+    const api: ApiClient = {
+      getProject: vi.fn(async () => projectWithTwoResumes),
+      getFile: vi.fn(async (path) => ({ path, content: "saved" })),
+      saveFile: vi.fn((input, signal) => {
+        if (input.path === "backend/main.tex") {
+          return new Promise<never>((_resolve, reject) => {
+            signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          });
+        }
+        return new Promise<{ ok: true }>((resolve) => {
+          resolveSecondSave = () => resolve({ ok: true });
+        });
+      }),
+      compile: vi.fn(),
+      lookupSynctex: vi.fn(),
+    };
+    const { result } = renderHook(() => useWorkspace({ api }));
+
+    await waitFor(() => expect(result.current.state.fileState).toBe("ready"));
+    act(() => {
+      result.current.editCurrentFile("first change");
+      void result.current.saveCurrentFile();
+      void result.current.selectFile("backend/other.tex");
+    });
+    await waitFor(() =>
+      expect(result.current.state.selectedTexPath).toBe("backend/other.tex"),
+    );
+    act(() => {
+      result.current.editCurrentFile("second change");
+      void result.current.saveCurrentFile();
+    });
+
+    await waitFor(() =>
+      expect(result.current.state.drafts["backend/main.tex"]?.saveState).toBe(
+        "idle",
+      ),
+    );
+    await act(async () => {
+      await result.current.selectFile("backend/main.tex");
+    });
+    expect(selectCanSave(result.current.state)).toBe(true);
+
+    act(() => resolveSecondSave());
+    await waitFor(() =>
+      expect(
+        result.current.state.drafts["backend/other.tex"]?.savedContent,
+      ).toBe("second change"),
     );
   });
 });
