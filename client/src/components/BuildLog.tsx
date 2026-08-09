@@ -1,4 +1,4 @@
-import type { CompileResult } from "../types";
+import type { CompileResult } from "../../../shared/contracts";
 
 export type BuildLogStatus =
   "idle" | "loading" | "ready" | "compiling" | "success" | "error";

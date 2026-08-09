@@ -6,9 +6,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
+    fileParallelism: false,
     passWithNoTests: true,
     setupFiles: "./client/src/testSetup.ts",
-    include: ["server/src/**/*.test.ts", "client/src/**/*.test.tsx"],
+    include: ["server/src/**/*.test.ts", "client/src/**/*.test.{ts,tsx}"],
     coverage: {
       provider: "v8",
     },

@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -9,67 +8,19 @@ import {
   type PointerEvent,
 } from "react";
 
-import { compileResume, getFile, getProject, lookupSynctex } from "./api";
 import { BuildLog, type BuildLogStatus } from "./components/BuildLog";
 import { PdfViewer } from "./components/PdfViewer";
 import { TexEditor } from "./components/TexEditor";
 import { TexFileTree } from "./components/TexFileTree";
-import type { CurrentFileDraft, ProjectResponse, ResumeInfo } from "./types";
+import {
+  selectCanCompile,
+  selectCurrentDraft,
+  selectSelectedResume,
+} from "./features/workspace/selectors";
+import { useWorkspace } from "./features/workspace/useWorkspace";
 
-type ProjectLoadState = "loading" | "ready" | "error";
-type FileLoadState = "idle" | "loading" | "ready" | "error";
-type CompileState = "idle" | "compiling" | "success" | "error";
 const MIN_TEX_FONT_SIZE = 8;
 const MAX_TEX_FONT_SIZE = 20;
-
-function isFileInResume(filePath: string, resume: ResumeInfo) {
-  return (
-    filePath === resume.entryPath ||
-    filePath === resume.dir ||
-    filePath.startsWith(`${resume.dir}/`)
-  );
-}
-
-function defaultTexPathForResume(project: ProjectResponse, resumeDir: string) {
-  const resume = project.resumes.find(
-    (candidate) => candidate.dir === resumeDir,
-  );
-
-  if (resume === undefined) {
-    return project.texFiles[0]?.path ?? null;
-  }
-
-  return (
-    project.texFiles.find((file) => file.path === resume.entryPath)?.path ??
-    project.texFiles.find((file) => isFileInResume(file.path, resume))?.path ??
-    resume.entryPath
-  );
-}
-
-function resumeDirForTexPath(project: ProjectResponse, filePath: string) {
-  return (
-    project.resumes
-      .filter((resume) => isFileInResume(filePath, resume))
-      .sort((left, right) => right.dir.length - left.dir.length)[0]?.dir ?? null
-  );
-}
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function normalizeOpenFile(
-  requestedPath: string,
-  response: { path?: string; content?: string },
-): CurrentFileDraft {
-  return {
-    path:
-      typeof response.path === "string" && response.path.length > 0
-        ? response.path
-        : requestedPath,
-    content: typeof response.content === "string" ? response.content : "",
-  };
-}
 
 function countLines(content: string) {
   if (content.length === 0) {
@@ -87,177 +38,19 @@ function clampTexFontSize(value: number) {
   return Math.min(MAX_TEX_FONT_SIZE, Math.max(MIN_TEX_FONT_SIZE, value));
 }
 
-async function readTexFile(path: string): Promise<CurrentFileDraft> {
-  return normalizeOpenFile(path, await getFile(path));
-}
-
 export function App() {
-  const [project, setProject] = useState<ProjectResponse>({
-    resumes: [],
-    texFiles: [],
-  });
-  const [loadState, setLoadState] = useState<ProjectLoadState>("loading");
-  const [loadError, setLoadError] = useState<string>();
-  const [fileLoadState, setFileLoadState] = useState<FileLoadState>("idle");
-  const [fileError, setFileError] = useState<string>();
-  const [selectedResumeDir, setSelectedResumeDir] = useState<string | null>(
-    null,
-  );
+  const workspace = useWorkspace();
+  const { state } = workspace;
+  const project = state.project ?? { resumes: [], texFiles: [] };
   const [isFilePaneCollapsed, setIsFilePaneCollapsed] = useState(false);
   const [paneSplit, setPaneSplit] = useState(0.5);
-  const [selectedTexPath, setSelectedTexPath] = useState<string | null>(null);
-  const [openFile, setOpenFile] = useState<CurrentFileDraft | null>(null);
-  const [targetLine, setTargetLine] = useState<number | null>(null);
-  const [targetLineRequestId, setTargetLineRequestId] = useState(0);
-  const [compileState, setCompileState] = useState<CompileState>("idle");
-  const [compileError, setCompileError] = useState<string>();
-  const [compileResult, setCompileResult] = useState<Awaited<
-    ReturnType<typeof compileResume>
-  > | null>(null);
-  const [pdfVersion, setPdfVersion] = useState(0);
   const [texFontSize, setTexFontSize] = useState(13);
-  const [activityMessage, setActivityMessage] = useState<string>();
-  const isMountedRef = useRef(true);
   const workspaceRef = useRef<HTMLElement | null>(null);
   const filePaneRef = useRef<HTMLElement | null>(null);
   const paneResizerRef = useRef<HTMLDivElement | null>(null);
-  const fileRequestIdRef = useRef(0);
-  const compileRequestIdRef = useRef(0);
-  const synctexRequestIdRef = useRef(0);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  const loadTexFile = useCallback(
-    async (
-      path: string,
-      nextTargetLine: number | null = null,
-      isCurrentRequest: () => boolean = () => true,
-    ) => {
-      const requestId = fileRequestIdRef.current + 1;
-      fileRequestIdRef.current = requestId;
-
-      setSelectedTexPath(path);
-      setFileLoadState("loading");
-      setFileError(undefined);
-      setTargetLine(null);
-
-      try {
-        const nextOpenFile = await readTexFile(path);
-
-        if (!isMountedRef.current || requestId !== fileRequestIdRef.current) {
-          return false;
-        }
-
-        if (!isCurrentRequest()) {
-          return false;
-        }
-
-        setOpenFile(nextOpenFile);
-        setSelectedTexPath(nextOpenFile.path);
-        setTargetLine(nextTargetLine);
-        if (nextTargetLine !== null) {
-          setTargetLineRequestId((currentId) => currentId + 1);
-        }
-        setFileLoadState("ready");
-        return true;
-      } catch (error) {
-        if (!isMountedRef.current || requestId !== fileRequestIdRef.current) {
-          return false;
-        }
-
-        if (!isCurrentRequest()) {
-          return false;
-        }
-
-        setOpenFile(null);
-        setFileError(errorMessage(error, "Unable to load TeX file"));
-        setFileLoadState("error");
-        return false;
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function loadProject() {
-      setLoadState("loading");
-      setLoadError(undefined);
-      setFileError(undefined);
-      setCompileError(undefined);
-
-      try {
-        const nextProject = await getProject();
-
-        if (isCancelled || !isMountedRef.current) {
-          return;
-        }
-
-        const initialResumeDir = nextProject.resumes[0]?.dir ?? null;
-        const initialTexPath =
-          initialResumeDir === null
-            ? (nextProject.texFiles[0]?.path ?? null)
-            : defaultTexPathForResume(nextProject, initialResumeDir);
-        let initialOpenFile: CurrentFileDraft | null = null;
-        let nextFileLoadState: FileLoadState =
-          initialTexPath === null ? "idle" : "ready";
-        let nextFileError: string | undefined;
-
-        if (initialTexPath !== null) {
-          setFileLoadState("loading");
-
-          try {
-            initialOpenFile = await readTexFile(initialTexPath);
-          } catch (error) {
-            nextFileLoadState = "error";
-            nextFileError = errorMessage(error, "Unable to load TeX file");
-          }
-        }
-
-        if (isCancelled || !isMountedRef.current) {
-          return;
-        }
-
-        setProject(nextProject);
-        setSelectedResumeDir(initialResumeDir);
-        setSelectedTexPath(initialOpenFile?.path ?? initialTexPath);
-        setOpenFile(initialOpenFile);
-        setTargetLine(null);
-        setFileError(nextFileError);
-        setFileLoadState(nextFileLoadState);
-        setLoadState("ready");
-      } catch (error) {
-        if (isCancelled || !isMountedRef.current) {
-          return;
-        }
-
-        setLoadError(
-          error instanceof Error ? error.message : "Unable to load project",
-        );
-        setLoadState("error");
-      }
-    }
-
-    void loadProject();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
-  const selectedResume = useMemo(
-    () =>
-      project.resumes.find((resume) => resume.dir === selectedResumeDir) ??
-      null,
-    [project.resumes, selectedResumeDir],
-  );
+  const selectedResume = selectSelectedResume(state);
+  const openFile = selectCurrentDraft(state) ?? null;
+  const selectedTexPath = state.selectedTexPath;
   const selectedFile = useMemo(
     () =>
       project.texFiles.find((file) => file.path === selectedTexPath) ?? null,
@@ -266,32 +59,27 @@ export function App() {
   const editorTitle =
     selectedFile?.name ?? openFile?.path.split("/").at(-1) ?? "Editor";
   const editorPath =
-    fileLoadState === "loading"
+    state.fileState === "loading"
       ? selectedTexPath
       : (openFile?.path ?? selectedTexPath);
   const openFileLineCount =
     openFile === null ? null : countLines(openFile.content);
   const previewPdfPath =
-    selectedResume?.pdfPath ?? compileResult?.pdfPath ?? null;
+    state.compileResult?.pdfPath ?? selectedResume?.pdfPath ?? null;
   const buildStatus: BuildLogStatus =
-    compileState === "compiling"
+    state.compileState === "compiling"
       ? "compiling"
-      : loadState === "error" || compileState === "error"
+      : state.projectState === "error" || state.compileState === "error"
         ? "error"
-        : loadState === "loading" || fileLoadState === "loading"
+        : state.projectState === "loading" || state.fileState === "loading"
           ? "loading"
-          : fileLoadState === "error" && compileState === "idle"
+          : state.fileState === "error" && state.compileState === "idle"
             ? "error"
-            : compileState === "success"
+            : state.compileState === "success"
               ? "success"
               : "ready";
-  const visibleFileError = compileState === "idle" ? fileError : undefined;
-  const visibleError = loadError ?? compileError ?? visibleFileError;
-  const canCompile =
-    loadState === "ready" &&
-    fileLoadState !== "loading" &&
-    compileState !== "compiling" &&
-    selectedResume !== null;
+  const visibleError = state.error;
+  const canCompile = selectCanCompile(state);
   const workspaceStyle = useMemo(
     () =>
       ({
@@ -362,26 +150,11 @@ export function App() {
   }
 
   function handleSelectTexFile(path: string) {
-    compileRequestIdRef.current += 1;
-    synctexRequestIdRef.current += 1;
-    setCompileState("idle");
-    setCompileResult(null);
-    setCompileError(undefined);
-    setActivityMessage(undefined);
-    const owningResumeDir = resumeDirForTexPath(project, path);
-    if (owningResumeDir !== null) {
-      setSelectedResumeDir(owningResumeDir);
-    }
-
-    void loadTexFile(path);
+    void workspace.selectFile(path);
   }
 
   function handleEditorChange(content: string) {
-    setOpenFile((currentOpenFile) =>
-      currentOpenFile === null
-        ? currentOpenFile
-        : { ...currentOpenFile, content },
-    );
+    workspace.editCurrentFile(content);
   }
 
   function handleAdjustTexFontSize(delta: number) {
@@ -391,120 +164,11 @@ export function App() {
   }
 
   async function handleCompile() {
-    if (selectedResume === null || compileState === "compiling") {
-      return;
-    }
-
-    const requestId = compileRequestIdRef.current + 1;
-    compileRequestIdRef.current = requestId;
-    setCompileState("compiling");
-    setCompileError(undefined);
-    setActivityMessage("Compiling current resume...");
-
-    try {
-      const result = await compileResume({
-        resumeDir: selectedResume.dir,
-        ...(openFile === null ? {} : { currentFile: openFile }),
-      });
-
-      if (!isMountedRef.current || requestId !== compileRequestIdRef.current) {
-        return;
-      }
-
-      setCompileResult(result);
-
-      if (result.ok) {
-        setCompileState("success");
-        setPdfVersion((currentVersion) => currentVersion + 1);
-        setActivityMessage(`Compiled ${selectedResume.name}.`);
-      } else {
-        setCompileState("error");
-        setActivityMessage("Compile finished with errors.");
-      }
-    } catch (error) {
-      if (!isMountedRef.current || requestId !== compileRequestIdRef.current) {
-        return;
-      }
-
-      setCompileResult(null);
-      setCompileError(errorMessage(error, "Compile request failed"));
-      setCompileState("error");
-      setActivityMessage("Compile request failed.");
-    }
+    await workspace.compileSelectedResume();
   }
 
   async function handlePdfClick(page: number, x: number, y: number) {
-    if (selectedResume === null) {
-      setActivityMessage("Select a resume before looking up a source line.");
-      return;
-    }
-
-    setActivityMessage("Looking up source line...");
-    const requestId = synctexRequestIdRef.current + 1;
-    synctexRequestIdRef.current = requestId;
-    fileRequestIdRef.current += 1;
-    const stableOpenFile = openFile;
-    setFileError(undefined);
-    setFileLoadState((currentState) =>
-      currentState === "loading"
-        ? stableOpenFile === null
-          ? "idle"
-          : "ready"
-        : currentState,
-    );
-    if (stableOpenFile !== null) {
-      setSelectedTexPath(stableOpenFile.path);
-      const stableResumeDir = resumeDirForTexPath(project, stableOpenFile.path);
-      if (stableResumeDir !== null) {
-        setSelectedResumeDir(stableResumeDir);
-      }
-    } else {
-      setSelectedTexPath(null);
-    }
-    setTargetLine(null);
-
-    try {
-      const result = await lookupSynctex({
-        resumeDir: selectedResume.dir,
-        page,
-        x,
-        y,
-      });
-
-      if (!isMountedRef.current || requestId !== synctexRequestIdRef.current) {
-        return;
-      }
-
-      if (!result.found) {
-        setActivityMessage("No matching source line.");
-        return;
-      }
-
-      const owningResumeDir = resumeDirForTexPath(project, result.file);
-      if (owningResumeDir !== null) {
-        setSelectedResumeDir(owningResumeDir);
-      }
-
-      const opened = await loadTexFile(
-        result.file,
-        result.line,
-        () => requestId === synctexRequestIdRef.current,
-      );
-
-      if (
-        opened &&
-        isMountedRef.current &&
-        requestId === synctexRequestIdRef.current
-      ) {
-        setActivityMessage(`Opened ${result.file} source line ${result.line}.`);
-      }
-    } catch (error) {
-      if (!isMountedRef.current || requestId !== synctexRequestIdRef.current) {
-        return;
-      }
-
-      setActivityMessage(errorMessage(error, "SyncTeX lookup failed."));
-    }
+    await workspace.lookupSource(page, x, y);
   }
 
   return (
@@ -612,7 +276,7 @@ export function App() {
               </span>
             </div>
           </div>
-          {loadState === "loading" || fileLoadState === "loading" ? (
+          {state.projectState === "loading" || state.fileState === "loading" ? (
             <div className="editor-placeholder" aria-live="polite">
               Loading TeX file...
             </div>
@@ -622,8 +286,8 @@ export function App() {
               fontSize={texFontSize}
               onChange={handleEditorChange}
               path={openFile?.path ?? null}
-              targetLine={targetLine}
-              targetLineRequestId={targetLineRequestId}
+              targetLine={state.targetLine}
+              targetLineRequestId={state.targetLineRequestId}
             />
           )}
         </section>
@@ -653,11 +317,11 @@ export function App() {
             <PdfViewer
               onPdfClick={(page, x, y) => void handlePdfClick(page, x, y)}
               pdfPath={previewPdfPath}
-              version={pdfVersion}
+              version={state.pdfVersion}
             />
-            {activityMessage === undefined ? null : (
+            {state.activityMessage === undefined ? null : (
               <p className="activity-message" role="status">
-                {activityMessage}
+                {state.activityMessage}
               </p>
             )}
           </section>
@@ -665,7 +329,7 @@ export function App() {
           <aside className="build-pane" aria-label="Build panel">
             <BuildLog
               error={visibleError}
-              result={compileResult}
+              result={state.compileResult}
               status={buildStatus}
             />
           </aside>

@@ -136,6 +136,10 @@ function stubWorkflowFetch() {
         });
       }
 
+      if (url === "/api/file" && init?.method === "PUT") {
+        return jsonResponse({ ok: true });
+      }
+
       if (url === "/api/compile") {
         compileRequests.push(requestBody(init));
         return jsonResponse({
@@ -186,17 +190,12 @@ describe("App workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: /编译当前简历/ }));
 
     await waitFor(() => expect(compileRequests).toHaveLength(1));
-    expect(compileRequests[0]).toEqual({
-      resumeDir: "backend-engineer",
-      currentFile: {
-        path: "backend-engineer/main.tex",
-        content: "% edited backend resume\n",
-      },
-    });
+    expect(compileRequests[0]).toEqual({ resumeId: "backend-engineer" });
     expect(screen.getByText(/compiled ok/)).toBeInTheDocument();
     expect(screen.getByText(/stdout text/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/file?path=backend-engineer%2Fmain.tex",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });
 
@@ -211,7 +210,7 @@ describe("App workflow", () => {
 
     await waitFor(() => expect(synctexRequests).toHaveLength(1));
     expect(synctexRequests[0]).toEqual({
-      resumeDir: "backend-engineer",
+      resumeId: "backend-engineer",
       page: 1,
       x: 72,
       y: 144,
@@ -296,6 +295,10 @@ describe("App workflow", () => {
           return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
         }
 
+        if (url === "/api/file" && init?.method === "PUT") {
+          return jsonResponse({ ok: true });
+        }
+
         if (url === "/api/compile") {
           void init;
           return compileResponse.promise;
@@ -359,6 +362,10 @@ describe("App workflow", () => {
         if (url.startsWith("/api/file?")) {
           const path = new URLSearchParams(url.split("?")[1]).get("path") ?? "";
           return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
+        }
+
+        if (url === "/api/file" && init?.method === "PUT") {
+          return jsonResponse({ ok: true });
         }
 
         if (url === "/api/synctex") {
@@ -426,6 +433,10 @@ describe("App workflow", () => {
           return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
         }
 
+        if (url === "/api/file" && init?.method === "PUT") {
+          return jsonResponse({ ok: true });
+        }
+
         if (url === "/api/synctex") {
           void init;
           synctexCount += 1;
@@ -490,6 +501,10 @@ describe("App workflow", () => {
           }
 
           return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
+        }
+
+        if (url === "/api/file" && init?.method === "PUT") {
+          return jsonResponse({ ok: true });
         }
 
         if (url === "/api/synctex") {
@@ -562,6 +577,10 @@ describe("App workflow", () => {
           return jsonResponse({ path, content: fileBodies.get(path) ?? "" });
         }
 
+        if (url === "/api/file" && init?.method === "PUT") {
+          return jsonResponse({ ok: true });
+        }
+
         if (url === "/api/synctex") {
           void init;
           return synctexResponse.promise;
@@ -609,12 +628,6 @@ describe("App workflow", () => {
     fireEvent.click(screen.getByRole("button", { name: /编译当前简历/ }));
 
     await waitFor(() => expect(compileRequests).toHaveLength(1));
-    expect(compileRequests[0]).toEqual({
-      resumeDir: "backend-engineer",
-      currentFile: {
-        path: "backend-engineer/main.tex",
-        content: "% default backend resume\n",
-      },
-    });
+    expect(compileRequests[0]).toEqual({ resumeId: "backend-engineer" });
   });
 });

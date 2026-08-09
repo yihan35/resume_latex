@@ -1,4 +1,4 @@
-import type { TexFileInfo } from "../types";
+import type { TexFileInfo } from "../../../shared/contracts";
 
 interface TexFileTreeProps {
   files: TexFileInfo[];

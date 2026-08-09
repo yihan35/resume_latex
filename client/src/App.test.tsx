@@ -8,7 +8,7 @@ import {
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { App } from "./App";
-import type { SynctexResult } from "./types";
+import type { SynctexResult } from "../../shared/contracts";
 
 type SuccessfulSynctexResult = Extract<SynctexResult, { found: true }>;
 
@@ -99,7 +99,10 @@ describe("App", () => {
       screen.queryByRole("tablist", { name: /resumes/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /compile/i })).toBeEnabled();
-    expect(fetchMock).toHaveBeenCalledWith("/api/project");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/project",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("keeps the selected tex file aligned when selecting from the file tree", async () => {
