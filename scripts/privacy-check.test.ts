@@ -74,6 +74,17 @@ describe("scanText", () => {
     ]);
   });
 
+  it("flags an unrelated SSH origin beside the approved origin", () => {
+    const mixedOrigins = [
+      "git" + "@github.com:someone/private.git",
+      "git" + "@github.com:yihan35/resume_latex.git",
+    ].join(" # ");
+
+    expect(scanText("notes.txt", mixedOrigins)).toEqual([
+      { path: "notes.txt", line: 1, rule: "email-address" },
+    ]);
+  });
+
   it("allows explicitly synthetic credential values", () => {
     const syntheticValues = [
       "API_KEY=test",

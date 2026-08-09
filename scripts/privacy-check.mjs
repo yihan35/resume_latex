@@ -84,6 +84,31 @@ function hasWindowsUserProfilePath(line, filePath) {
   );
 }
 
+function isOriginBoundary(character) {
+  return (
+    character === undefined ||
+    /\s/.test(character) ||
+    "\"'`()[]{},;#".includes(character)
+  );
+}
+
+function isApprovedGitHubSshOccurrence(line, matchIndex) {
+  if (matchIndex === undefined) return false;
+
+  return PUBLIC_GITHUB_SSH_ORIGINS.some((origin) => {
+    const accountOffset = origin.indexOf(GITHUB_SSH_ACCOUNT);
+    const originStart = matchIndex - accountOffset;
+    if (originStart < 0) return false;
+    const originEnd = originStart + origin.length;
+
+    return (
+      line.slice(originStart, originEnd) === origin &&
+      isOriginBoundary(line[originStart - 1]) &&
+      isOriginBoundary(line[originEnd])
+    );
+  });
+}
+
 function hasPrivateEmail(line) {
   const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
   return Array.from(line.matchAll(emailPattern)).some((match) => {
@@ -91,7 +116,7 @@ function hasPrivateEmail(line) {
     if (address.endsWith("@example.com")) return false;
     if (
       address === GITHUB_SSH_ACCOUNT &&
-      PUBLIC_GITHUB_SSH_ORIGINS.some((origin) => line.includes(origin))
+      isApprovedGitHubSshOccurrence(line, match.index)
     ) {
       return false;
     }
