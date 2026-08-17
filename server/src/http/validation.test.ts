@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isAiChatRequest,
   isCompileRequest,
   isSaveFileRequest,
   isSynctexRequest,
@@ -39,6 +40,38 @@ describe("request validation", () => {
         x: 4,
         y: 8,
         extra: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts only the exact AI chat request shape", () => {
+    expect(
+      isAiChatRequest({
+        path: "sample/resume.tex",
+        content: "% resume",
+        messages: [{ role: "user", content: "优化" }],
+      }),
+    ).toBe(true);
+    expect(isAiChatRequest({ path: "x", content: "y" })).toBe(false);
+    expect(
+      isAiChatRequest({
+        path: "sample/resume.tex",
+        content: "% resume",
+        messages: [{ role: "system", content: "bad" }],
+      }),
+    ).toBe(false);
+    expect(
+      isAiChatRequest({
+        path: "sample/resume.tex",
+        content: "% resume",
+        messages: [{ role: "user", content: "x".repeat(100_001) }],
+      }),
+    ).toBe(false);
+    expect(
+      isAiChatRequest({
+        path: "x".repeat(513),
+        content: "% resume",
+        messages: [],
       }),
     ).toBe(false);
   });

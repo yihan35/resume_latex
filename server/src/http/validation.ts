@@ -1,4 +1,6 @@
 import type {
+  AiChatMessage,
+  AiChatRequest,
   CompileRequest,
   SaveFileRequest,
   SynctexRequest,
@@ -13,6 +15,36 @@ function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
   return (
     actual.length === keys.length &&
     actual.every((key, index) => key === keys[index])
+  );
+}
+
+const MAX_AI_PATH_LENGTH = 512;
+const MAX_AI_CONTENT_LENGTH = 400_000;
+const MAX_AI_MESSAGES = 100;
+const MAX_AI_MESSAGE_LENGTH = 100_000;
+
+function isAiChatMessage(value: unknown): value is AiChatMessage {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["content", "role"]) &&
+    (value.role === "user" || value.role === "assistant") &&
+    typeof value.content === "string" &&
+    value.content.length <= MAX_AI_MESSAGE_LENGTH
+  );
+}
+
+export function isAiChatRequest(value: unknown): value is AiChatRequest {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["content", "messages", "path"]) &&
+    typeof value.path === "string" &&
+    value.path.length > 0 &&
+    value.path.length <= MAX_AI_PATH_LENGTH &&
+    typeof value.content === "string" &&
+    value.content.length <= MAX_AI_CONTENT_LENGTH &&
+    Array.isArray(value.messages) &&
+    value.messages.length <= MAX_AI_MESSAGES &&
+    value.messages.every(isAiChatMessage)
   );
 }
 
