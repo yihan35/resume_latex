@@ -120,7 +120,7 @@ describe("createApiClient", () => {
 
     const events: AiChatStreamEvent[] = [];
     for await (const event of await api.chatAi(
-      { path: "a.tex", content: "% x", messages: [] },
+      { path: "a.tex", content: "% x", resumeId: "sample", messages: [] },
       controller.signal,
     )) {
       events.push(event);
@@ -149,7 +149,12 @@ describe("createApiClient", () => {
     );
 
     await expect(
-      api.chatAi({ path: "a.tex", content: "% x", messages: [] }),
+      api.chatAi({
+        path: "a.tex",
+        content: "% x",
+        resumeId: "sample",
+        messages: [],
+      }),
     ).rejects.toMatchObject({
       name: "ApiClientError",
       status: 503,

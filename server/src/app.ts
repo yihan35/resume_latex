@@ -131,6 +131,7 @@ export function createApp(dependencies: AppDependencies): Express {
     createAiRouter({
       apiKey: config.deepseekApiKey,
       deepseek,
+      findResume,
     }),
   );
   app.use("/api", (_request, response) => {

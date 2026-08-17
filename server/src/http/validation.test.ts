@@ -49,6 +49,7 @@ describe("request validation", () => {
       isAiChatRequest({
         path: "sample/resume.tex",
         content: "% resume",
+        resumeId: "sample",
         messages: [{ role: "user", content: "优化" }],
       }),
     ).toBe(true);
@@ -57,6 +58,15 @@ describe("request validation", () => {
       isAiChatRequest({
         path: "sample/resume.tex",
         content: "% resume",
+        resumeId: "",
+        messages: [],
+      }),
+    ).toBe(false);
+    expect(
+      isAiChatRequest({
+        path: "sample/resume.tex",
+        content: "% resume",
+        resumeId: "sample",
         messages: [{ role: "system", content: "bad" }],
       }),
     ).toBe(false);
@@ -64,6 +74,7 @@ describe("request validation", () => {
       isAiChatRequest({
         path: "sample/resume.tex",
         content: "% resume",
+        resumeId: "sample",
         messages: [{ role: "user", content: "x".repeat(100_001) }],
       }),
     ).toBe(false);
@@ -71,6 +82,7 @@ describe("request validation", () => {
       isAiChatRequest({
         path: "x".repeat(513),
         content: "% resume",
+        resumeId: "sample",
         messages: [],
       }),
     ).toBe(false);

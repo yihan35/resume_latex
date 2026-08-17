@@ -125,6 +125,7 @@ export function App() {
         onApply={workspace.editCurrentFile}
         onClose={() => setAiOpen(false)}
         open={aiOpen}
+        resumeId={selectedResume?.id ?? null}
       />
     </main>
   );

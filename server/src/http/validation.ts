@@ -20,6 +20,7 @@ function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
 
 const MAX_AI_PATH_LENGTH = 512;
 const MAX_AI_CONTENT_LENGTH = 400_000;
+const MAX_AI_RESUME_ID_LENGTH = 200;
 const MAX_AI_MESSAGES = 100;
 const MAX_AI_MESSAGE_LENGTH = 100_000;
 
@@ -36,10 +37,13 @@ function isAiChatMessage(value: unknown): value is AiChatMessage {
 export function isAiChatRequest(value: unknown): value is AiChatRequest {
   return (
     isRecord(value) &&
-    hasExactKeys(value, ["content", "messages", "path"]) &&
+    hasExactKeys(value, ["content", "messages", "path", "resumeId"]) &&
     typeof value.path === "string" &&
     value.path.length > 0 &&
     value.path.length <= MAX_AI_PATH_LENGTH &&
+    typeof value.resumeId === "string" &&
+    value.resumeId.length > 0 &&
+    value.resumeId.length <= MAX_AI_RESUME_ID_LENGTH &&
     typeof value.content === "string" &&
     value.content.length <= MAX_AI_CONTENT_LENGTH &&
     Array.isArray(value.messages) &&

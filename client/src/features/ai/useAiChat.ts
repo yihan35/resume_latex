@@ -39,7 +39,12 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   }, []);
 
   const send = useCallback(
-    async (input: { path: string; content: string; prompt: string }) => {
+    async (input: {
+      path: string;
+      content: string;
+      resumeId: string;
+      prompt: string;
+    }) => {
       const prompt = input.prompt.trim();
       if (statusRef.current === "streaming" || prompt === "") return;
 
@@ -54,7 +59,12 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       let accumulated = "";
       try {
         const stream = await apiRef.current.chatAi(
-          { path: input.path, content: input.content, messages: history },
+          {
+            path: input.path,
+            content: input.content,
+            resumeId: input.resumeId,
+            messages: history,
+          },
           controller.signal,
         );
         for await (const event of stream) {

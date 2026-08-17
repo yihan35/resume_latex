@@ -31,6 +31,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open
+        resumeId="sample"
       />,
     );
 
@@ -52,6 +53,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open
+        resumeId={null}
       />,
     );
 
@@ -67,6 +69,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open
+        resumeId="sample"
       />,
     );
 
@@ -90,6 +93,7 @@ describe("AiChatPanel", () => {
         onApply={onApply}
         onClose={vi.fn()}
         open
+        resumeId="sample"
       />,
     );
 
@@ -117,6 +121,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open
+        resumeId="sample"
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "知道了" }));
@@ -132,6 +137,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open={false}
+        resumeId="sample"
       />,
     );
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
@@ -144,6 +150,7 @@ describe("AiChatPanel", () => {
         onApply={vi.fn()}
         onClose={vi.fn()}
         open
+        resumeId="sample"
       />,
     );
     expect(screen.getByRole("textbox")).toHaveValue("待发送");

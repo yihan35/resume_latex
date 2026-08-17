@@ -3,6 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { writeFile } from "node:fs/promises";
 import request from "supertest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +12,8 @@ import type { AppConfig } from "../../config/appConfig.js";
 import {
   createDeepSeekClient,
   DeepSeekUpstreamError,
+  type DeepSeekChatMessage,
+  type DeepSeekChatOptions,
   type DeepSeekClient,
 } from "../../domain/deepseek.js";
 
@@ -59,6 +62,16 @@ function sseParser() {
   };
 }
 
+async function write(
+  rootPath: string,
+  file: string,
+  content: string,
+): Promise<void> {
+  const target = path.join(rootPath, file);
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, content);
+}
+
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((value) => rm(value, { recursive: true, force: true })),
@@ -80,7 +93,12 @@ describe("AI chat route", () => {
 
     await request(app)
       .post("/api/ai/chat")
-      .send({ path: "a.tex", content: "% x", messages: [] })
+      .send({
+        path: "sample/resume.tex",
+        content: "% x",
+        resumeId: "sample",
+        messages: [],
+      })
       .expect(503, {
         error: { code: "AI_NOT_CONFIGURED", message: "AI is not configured" },
       });
@@ -88,6 +106,7 @@ describe("AI chat route", () => {
 
   it("rejects invalid request bodies before streaming", async () => {
     const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% sample");
     const chatStream = vi.fn(async function* () {
       yield "x";
     });
@@ -96,17 +115,42 @@ describe("AI chat route", () => {
 
     await request(app)
       .post("/api/ai/chat")
-      .send({ path: "a.tex", content: "% x" })
+      .send({ path: "a.tex", content: "% x", resumeId: "sample" })
       .expect(400, {
         error: { code: "INVALID_REQUEST", message: "Invalid AI chat request" },
       });
     expect(chatStream).not.toHaveBeenCalled();
   });
 
-  it("relays DeepSeek deltas and a done event as SSE", async () => {
+  it("returns 404 when the resume id is unknown", async () => {
     const projectRoot = await root();
     const deepseek = {
       chatStream: async function* () {
+        yield "x";
+      },
+    } as unknown as DeepSeekClient;
+    const app = createApp({ config: config(projectRoot), deepseek });
+
+    await request(app)
+      .post("/api/ai/chat")
+      .send({
+        path: "a.tex",
+        content: "% x",
+        resumeId: "missing",
+        messages: [],
+      })
+      .expect(404, {
+        error: { code: "FILE_NOT_FOUND", message: "Resume not found" },
+      });
+  });
+
+  it("relays DeepSeek deltas and a done event as SSE", async () => {
+    const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% sample");
+    let receivedMessages: readonly DeepSeekChatMessage[] = [];
+    const deepseek = {
+      chatStream: async function* (options: DeepSeekChatOptions) {
+        receivedMessages = options.messages;
         yield "你";
         yield "好";
       },
@@ -116,8 +160,9 @@ describe("AI chat route", () => {
     const response = await request(app)
       .post("/api/ai/chat")
       .send({
-        path: "a.tex",
+        path: "sample/resume.tex",
         content: "% x",
+        resumeId: "sample",
         messages: [{ role: "user", content: "优化" }],
       })
       .buffer(true)
@@ -128,10 +173,17 @@ describe("AI chat route", () => {
     expect(response.text).toContain('"type":"delta","text":"你"');
     expect(response.text).toContain('"type":"delta","text":"好"');
     expect(response.text).toContain('"type":"done"');
+    const systemMessage = receivedMessages[0];
+    expect(systemMessage).toMatchObject({
+      role: "system",
+      content: expect.stringContaining('resume "sample"'),
+    });
+    expect(systemMessage?.content).toContain("sample/resume.tex");
   });
 
   it("sends an AI_UPSTREAM_ERROR event when DeepSeek fails", async () => {
     const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% sample");
     const deepseek = {
       chatStream: async function* () {
         yield "";
@@ -142,7 +194,12 @@ describe("AI chat route", () => {
 
     const response = await request(app)
       .post("/api/ai/chat")
-      .send({ path: "a.tex", content: "% x", messages: [] })
+      .send({
+        path: "a.tex",
+        content: "% x",
+        resumeId: "sample",
+        messages: [],
+      })
       .buffer(true)
       .parse(sseParser())
       .expect(200);
@@ -153,6 +210,7 @@ describe("AI chat route", () => {
 
   it("aborts the upstream stream when the client disconnects", async () => {
     const projectRoot = await root();
+    await write(projectRoot, "sample/resume.tex", "% sample");
     let resolveAborted!: () => void;
     const aborted = new Promise<void>((resolve) => {
       resolveAborted = resolve;
@@ -187,7 +245,12 @@ describe("AI chat route", () => {
         );
         req.on("error", () => undefined);
         req.write(
-          JSON.stringify({ path: "a.tex", content: "% x", messages: [] }),
+          JSON.stringify({
+            path: "a.tex",
+            content: "% x",
+            resumeId: "sample",
+            messages: [],
+          }),
         );
         req.end();
       });

@@ -28,6 +28,7 @@ describe("useAiChat", () => {
       await result.current.send({
         path: "a.tex",
         content: "% x",
+        resumeId: "sample",
         prompt: "优化",
       });
     });
@@ -41,6 +42,7 @@ describe("useAiChat", () => {
       {
         path: "a.tex",
         content: "% x",
+        resumeId: "sample",
         messages: [],
       },
       expect.any(AbortSignal),
@@ -58,6 +60,7 @@ describe("useAiChat", () => {
       await result.current.send({
         path: "a.tex",
         content: "% x",
+        resumeId: "sample",
         prompt: "优化",
       });
     });
@@ -94,6 +97,7 @@ describe("useAiChat", () => {
     const sendPromise = result.current.send({
       path: "a.tex",
       content: "% x",
+      resumeId: "sample",
       prompt: "优化",
     });
     act(() => {

@@ -17,6 +17,7 @@ interface AiChatPanelProps {
   onApply: (content: string) => void;
   onClose: () => void;
   open: boolean;
+  resumeId: string | null;
 }
 
 export function AiChatPanel({
@@ -26,6 +27,7 @@ export function AiChatPanel({
   onApply,
   onClose,
   open,
+  resumeId,
 }: AiChatPanelProps) {
   const chat = useAiChat(api === undefined ? {} : { api });
   const [draft, setDraft] = useState("");
@@ -43,6 +45,7 @@ export function AiChatPanel({
   const canSend =
     privacyAcknowledged &&
     filePath !== null &&
+    resumeId !== null &&
     fileContent !== "" &&
     chat.status !== "streaming" &&
     draft.trim() !== "";
@@ -55,9 +58,14 @@ export function AiChatPanel({
       : null;
 
   function handleSubmit() {
-    if (!canSend || filePath === null) return;
+    if (!canSend || filePath === null || resumeId === null) return;
     setApplied(null);
-    void chat.send({ path: filePath, content: fileContent, prompt: draft });
+    void chat.send({
+      path: filePath,
+      content: fileContent,
+      resumeId,
+      prompt: draft,
+    });
     setDraft("");
   }
 

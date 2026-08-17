@@ -79,6 +79,7 @@ export interface AiChatMessage {
 export interface AiChatRequest {
   path: string;
   content: string;
+  resumeId: string;
   messages: AiChatMessage[];
 }
 

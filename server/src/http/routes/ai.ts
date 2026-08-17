@@ -1,6 +1,9 @@
 import { Router } from "express";
 
-import type { AiChatStreamEvent } from "../../../../shared/contracts.js";
+import type {
+  AiChatStreamEvent,
+  ResumeInfo,
+} from "../../../../shared/contracts.js";
 import {
   DeepSeekTimeoutError,
   DeepSeekUpstreamError,
@@ -10,10 +13,14 @@ import {
 import { ApiError } from "../apiError.js";
 import { isAiChatRequest } from "../validation.js";
 
-function buildSystemPrompt(filePath: string): string {
+function buildSystemPrompt(
+  filePath: string,
+  resumeName: string,
+  resumeDir: string,
+): string {
   return [
     "You are an expert LaTeX resume assistant.",
-    `The user is editing the file "${filePath}".`,
+    `The user is editing the file "${filePath}" inside the resume "${resumeName}" (directory "${resumeDir}").`,
     "When the user asks you to modify the file, reply with the COMPLETE new file content inside a single fenced code block labeled `latex`.",
     "Put any explanation outside the code block.",
     "Do not invent facts, emails, phone numbers, or project details that are not already in the file.",
@@ -24,6 +31,7 @@ function buildSystemPrompt(filePath: string): string {
 export function createAiRouter(options: {
   apiKey: string;
   deepseek: DeepSeekClient;
+  findResume: (id: string) => Promise<ResumeInfo | undefined>;
 }): Router {
   const router = Router();
 
@@ -33,6 +41,10 @@ export function createAiRouter(options: {
     }
     if (options.apiKey === "") {
       throw new ApiError(503, "AI_NOT_CONFIGURED", "AI is not configured");
+    }
+    const resume = await options.findResume(request.body.resumeId);
+    if (resume === undefined) {
+      throw new ApiError(404, "FILE_NOT_FOUND", "Resume not found");
     }
 
     response.status(200);
@@ -53,7 +65,14 @@ export function createAiRouter(options: {
 
     try {
       const messages: readonly DeepSeekChatMessage[] = [
-        { role: "system", content: buildSystemPrompt(request.body.path) },
+        {
+          role: "system",
+          content: buildSystemPrompt(
+            request.body.path,
+            resume.name,
+            resume.dir,
+          ),
+        },
         ...request.body.messages,
         {
           role: "user",
