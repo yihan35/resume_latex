@@ -126,10 +126,7 @@ describe("createApiClient", () => {
       events.push(event);
     }
 
-    expect(events).toEqual([
-      { type: "delta", text: "你" },
-      { type: "done" },
-    ]);
+    expect(events).toEqual([{ type: "delta", text: "你" }, { type: "done" }]);
     expect(fetcher).toHaveBeenCalledWith(
       "/api/ai/chat",
       expect.objectContaining({ signal: controller.signal }),

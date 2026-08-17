@@ -5,17 +5,19 @@ import type { AiChatStreamEvent } from "../../../../shared/contracts";
 import type { ApiClient } from "../../lib/apiClient";
 import { useAiChat } from "./useAiChat";
 
-function fakeApi(events: AiChatStreamEvent[]): ApiClient {
-  return {
-    chatAi: vi.fn(async function* () {
-      for (const event of events) yield event;
-    }),
-  } as unknown as ApiClient;
+function fakeApi(events: AiChatStreamEvent[]): {
+  api: ApiClient;
+  chatAi: ReturnType<typeof vi.fn>;
+} {
+  const chatAi = vi.fn(async function* () {
+    for (const event of events) yield event;
+  });
+  return { api: { chatAi } as unknown as ApiClient, chatAi };
 }
 
 describe("useAiChat", () => {
   it("appends the user message and streams the assistant reply", async () => {
-    const api = fakeApi([
+    const { api, chatAi } = fakeApi([
       { type: "delta", text: "你" },
       { type: "delta", text: "好" },
       { type: "done" },
@@ -35,7 +37,7 @@ describe("useAiChat", () => {
       { role: "assistant", content: "你好" },
     ]);
     expect(result.current.status).toBe("idle");
-    expect(api.chatAi).toHaveBeenCalledWith(
+    expect(chatAi).toHaveBeenCalledWith(
       {
         path: "a.tex",
         content: "% x",
@@ -46,7 +48,7 @@ describe("useAiChat", () => {
   });
 
   it("surfaces an error event and keeps the partial reply", async () => {
-    const api = fakeApi([
+    const { api } = fakeApi([
       { type: "delta", text: "部分" },
       { type: "error", code: "AI_UPSTREAM_ERROR", message: "服务不可用" },
     ]);

@@ -1,8 +1,7 @@
 import type { AiChatMessage } from "../../../shared/contracts.js";
 
 export type DeepSeekChatMessage =
-  | AiChatMessage
-  | { role: "system"; content: string };
+  AiChatMessage | { role: "system"; content: string };
 
 export interface DeepSeekChatOptions {
   messages: readonly DeepSeekChatMessage[];
@@ -18,7 +17,7 @@ export interface DeepSeekClientOptions {
 }
 
 export interface DeepSeekClient {
-  chatStream(options: DeepSeekChatOptions): AsyncIterable<string>;
+  chatStream(options: DeepSeekChatOptions): AsyncGenerator<string>;
 }
 
 export class DeepSeekUpstreamError extends Error {
@@ -80,7 +79,8 @@ export function createDeepSeekClient(
           throw new DeepSeekUpstreamError("DeepSeek returned an empty body");
         }
 
-        const reader = upstream.body.getReader();
+        const reader: ReadableStreamDefaultReader<Uint8Array> =
+          upstream.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
         try {

@@ -88,11 +88,10 @@ describe("AI chat route", () => {
 
   it("rejects invalid request bodies before streaming", async () => {
     const projectRoot = await root();
-    const deepseek = {
-      chatStream: vi.fn(async function* () {
-        yield "x";
-      }),
-    } as unknown as DeepSeekClient;
+    const chatStream = vi.fn(async function* () {
+      yield "x";
+    });
+    const deepseek = { chatStream } as unknown as DeepSeekClient;
     const app = createApp({ config: config(projectRoot), deepseek });
 
     await request(app)
@@ -101,7 +100,7 @@ describe("AI chat route", () => {
       .expect(400, {
         error: { code: "INVALID_REQUEST", message: "Invalid AI chat request" },
       });
-    expect(deepseek.chatStream).not.toHaveBeenCalled();
+    expect(chatStream).not.toHaveBeenCalled();
   });
 
   it("relays DeepSeek deltas and a done event as SSE", async () => {
@@ -135,6 +134,7 @@ describe("AI chat route", () => {
     const projectRoot = await root();
     const deepseek = {
       chatStream: async function* () {
+        yield "";
         throw new DeepSeekUpstreamError("boom", 503);
       },
     } as unknown as DeepSeekClient;
@@ -160,11 +160,9 @@ describe("AI chat route", () => {
     const deepseek = {
       chatStream: async function* ({ signal }: { signal?: AbortSignal }) {
         yield "开始";
-        signal?.addEventListener(
-          "abort",
-          () => resolveAborted(),
-          { once: true },
-        );
+        signal?.addEventListener("abort", () => resolveAborted(), {
+          once: true,
+        });
         await aborted;
       },
     } as unknown as DeepSeekClient;

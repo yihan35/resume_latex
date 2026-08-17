@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AiChatMessage } from "../../../../shared/contracts";
 import { createApiClient, type ApiClient } from "../../lib/apiClient";
@@ -16,10 +16,16 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   const [status, setStatus] = useState<AiChatStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const statusRef = useRef(status);
-  statusRef.current = status;
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
   const controllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const finishPartial = useCallback((partial: string) => {
     if (partial !== "") {

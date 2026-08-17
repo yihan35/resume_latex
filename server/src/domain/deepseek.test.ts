@@ -34,15 +34,17 @@ const baseOptions = {
 
 describe("createDeepSeekClient", () => {
   it("yields content deltas from the SSE stream and stops at [DONE]", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      response(
-        sseBody([
-          'data: {"choices":[{"delta":{"content":"你"}}]}\n\n',
-          'data: {"choices":[{"delta":{"content":"好"}}]}\n\n',
-          "data: [DONE]\n\n",
-        ]),
-      ),
-    );
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        response(
+          sseBody([
+            'data: {"choices":[{"delta":{"content":"你"}}]}\n\n',
+            'data: {"choices":[{"delta":{"content":"好"}}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      );
     const client = createDeepSeekClient({ ...baseOptions, fetcher });
 
     const deltas: string[] = [];
@@ -101,15 +103,17 @@ describe("createDeepSeekClient", () => {
   });
 
   it("skips malformed chunks and keeps valid deltas", async () => {
-    const fetcher = vi.fn().mockResolvedValue(
-      response(
-        sseBody([
-          "data: not-json\n\n",
-          'data: {"choices":[{"delta":{"content":"a"}}]}\n\n',
-          "data: [DONE]\n\n",
-        ]),
-      ),
-    );
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        response(
+          sseBody([
+            "data: not-json\n\n",
+            'data: {"choices":[{"delta":{"content":"a"}}]}\n\n',
+            "data: [DONE]\n\n",
+          ]),
+        ),
+      );
     const client = createDeepSeekClient({ ...baseOptions, fetcher });
 
     const deltas: string[] = [];
@@ -120,15 +124,21 @@ describe("createDeepSeekClient", () => {
   });
 
   it("throws DeepSeekTimeoutError when the upstream hangs past the timeout", async () => {
-    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
-      await new Promise<void>((resolve, reject) => {
-        init?.signal?.addEventListener(
-          "abort",
-          () => reject(new DOMException("aborted", "AbortError")),
-          { once: true },
-        );
-      });
-    });
+    const fetcher = vi.fn(
+      async (
+        _input: Parameters<typeof fetch>[0],
+        init?: RequestInit,
+      ): Promise<Response> => {
+        await new Promise<void>((resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        });
+        throw new Error("unreachable");
+      },
+    );
     const client = createDeepSeekClient({
       ...baseOptions,
       timeoutMs: 50,
@@ -141,15 +151,21 @@ describe("createDeepSeekClient", () => {
   });
 
   it("propagates an external abort signal", async () => {
-    const fetcher = vi.fn(async (_url: string, init?: RequestInit) => {
-      await new Promise<void>((resolve, reject) => {
-        init?.signal?.addEventListener(
-          "abort",
-          () => reject(new DOMException("aborted", "AbortError")),
-          { once: true },
-        );
-      });
-    });
+    const fetcher = vi.fn(
+      async (
+        _input: Parameters<typeof fetch>[0],
+        init?: RequestInit,
+      ): Promise<Response> => {
+        await new Promise<void>((resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        });
+        throw new Error("unreachable");
+      },
+    );
     const client = createDeepSeekClient({ ...baseOptions, fetcher });
     const controller = new AbortController();
 

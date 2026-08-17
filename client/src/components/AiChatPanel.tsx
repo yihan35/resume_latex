@@ -4,7 +4,7 @@ import type { AiChatMessage } from "../../../shared/contracts";
 import type { ApiClient } from "../lib/apiClient";
 import { useAiChat } from "../features/ai/useAiChat";
 
-export function extractLatexBlock(content: string): string | null {
+function extractLatexBlock(content: string): string | null {
   const match = content.match(/```latex\s*\r?\n([\s\S]*?)```/i);
   if (match === null) return null;
   return match[1]?.replace(/\r?\n$/, "") ?? null;
