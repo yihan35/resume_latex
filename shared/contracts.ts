@@ -6,6 +6,8 @@ export type ApiErrorCode =
   | "SYNCTEX_NOT_FOUND"
   | "COMPILE_BUSY"
   | "COMPILE_FAILED"
+  | "AI_NOT_CONFIGURED"
+  | "AI_UPSTREAM_ERROR"
   | "INTERNAL_ERROR";
 
 export interface ResumeInfo {
@@ -68,3 +70,19 @@ export interface SynctexRequest {
 export type SynctexResult =
   | { found: false }
   | { found: true; file: string; line: number; column?: number };
+
+export interface AiChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiChatRequest {
+  path: string;
+  content: string;
+  messages: AiChatMessage[];
+}
+
+export type AiChatStreamEvent =
+  | { type: "delta"; text: string }
+  | { type: "done" }
+  | { type: "error"; code: ApiErrorCode; message: string };
