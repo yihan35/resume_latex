@@ -111,6 +111,19 @@ describe("scanText", () => {
       [],
     );
   });
+
+  it("allows code references and type annotations for API key fields", () => {
+    const code = [
+      "apiKey: string;",
+      'apiKey: "sk-test",',
+      'deepseekApiKey: "test-key",',
+      "apiKey: config.deepseekApiKey,",
+      "apiKey: dependencies.config.deepseekApiKey,",
+      'if (options.apiKey === "") {',
+    ].join("\n");
+
+    expect(scanText("server/src/domain/deepseek.ts", code)).toEqual([]);
+  });
 });
 
 describe("scanBuffer", () => {

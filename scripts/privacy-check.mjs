@@ -19,8 +19,10 @@ const SAFE_ASSIGNMENT_VALUES = new Set([
   "placeholder",
   "redacted",
   "sample",
+  "sk-test",
   "synthetic",
   "test",
+  "test-key",
   "xxx",
   "your-value",
 ]);
@@ -136,6 +138,9 @@ function hasCredentialAssignment(line, filePath) {
     if (/^<[^>]+>$/.test(value)) return false;
     if (/^\$\{?\{?[^}]+\}?\}?$/.test(value)) return false;
     if (/^(?:process\.)?env\./.test(value)) return false;
+    if (/^(?:config|options|dependencies)\./.test(value)) return false;
+    if (value === "string") return false;
+    if (value.startsWith("=")) return false;
     return value.length > 0;
   });
 }

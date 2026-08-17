@@ -37,6 +37,8 @@
 - 用 XeLaTeX 编译选中的简历，并显示经过脱敏的编译输出。
 - 响应式、高像素密度地预览 PDF 第一页。
 - 通过 SyncTeX 将 PDF 点击位置映射回源码。
+- 流式 AI 助手：可以看到当前 TeX 源码，调用 DeepSeek（`deepseek-v4-flash`）
+  修改简历，修改结果先应用到编辑器、确认后再保存。
 - 限制文件访问、验证请求、约束进程输出，并使用不泄露本地绝对路径的稳定公开错误。
 - 提供虚构示例、自动隐私扫描、测试和生产构建。
 
@@ -85,9 +87,26 @@ npm start
 | `RESUME_EDITOR_CLIENT_PORT` | `5173`                         | Vite 开发服务器端口            |
 | `RESUME_LATEX_COMMAND`      | `xelatex`                      | XeLaTeX 可执行文件名或绝对路径 |
 | `RESUME_SYNCTEX_COMMAND`    | `synctex`                      | SyncTeX 可执行文件名或绝对路径 |
+| `DEEPSEEK_API_KEY`          | _（未设置）_                   | DeepSeek API Key，启用 AI 助手 |
+| `DEEPSEEK_MODEL`            | `deepseek-v4-flash`            | 发送给 DeepSeek 的模型名       |
+| `DEEPSEEK_BASE_URL`         | `https://api.deepseek.com`     | DeepSeek API 基础地址          |
+| `DEEPSEEK_TIMEOUT_MS`       | `120000`                       | AI 上游请求超时时间（毫秒）    |
 
 相对项目根目录会基于仓库目录解析。非法端口、不存在或并非目录的根路径，以及
 空入口文件列表都会让应用以简明错误停止启动。
+
+## AI 助手
+
+AI 助手默认关闭，配置后才启用。在 `.env.local`（已被 git 忽略）中设置
+`DEEPSEEK_API_KEY`，打开应用后点击顶栏的 **AI 助手**。
+
+- 发送消息会把当前编辑器内容（含未保存草稿）和对话历史发送到 DeepSeek。
+  界面会先显示隐私提示；确认前无法发送。
+- 回复以流式方式显示。当模型返回完整 ` ```latex ` 代码块时，会出现
+  **应用到编辑器** 按钮，把提取出的内容写入编辑器草稿。请检查后再点保存；
+  不会自动覆盖磁盘文件。
+- API Key 只存在于服务端。未配置 key 时面板显示 AI 未配置，其余功能不受影响。
+- 对话历史仅保存在内存中，刷新页面后清空。
 
 ## 开发
 

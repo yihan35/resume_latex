@@ -41,6 +41,9 @@ source line through SyncTeX.
 - Compiles the selected resume with XeLaTeX and shows sanitized build output.
 - Renders a responsive, high-density preview of the first PDF page.
 - Maps PDF clicks back to source through SyncTeX.
+- Streams an AI assistant that sees the current TeX source and can apply
+  proposed LaTeX changes back to the editor draft through DeepSeek
+  (`deepseek-v4-flash`).
 - Confines file access, validates requests, limits process output, and reports
   stable public errors without exposing local absolute paths.
 - Includes a fictional sample, automated privacy scanning, tests, and a
@@ -92,10 +95,31 @@ same values in your shell.
 | `RESUME_EDITOR_CLIENT_PORT` | `5173`                         | Vite development server port                  |
 | `RESUME_LATEX_COMMAND`      | `xelatex`                      | XeLaTeX executable name or absolute path      |
 | `RESUME_SYNCTEX_COMMAND`    | `synctex`                      | SyncTeX executable name or absolute path      |
+| `DEEPSEEK_API_KEY`          | _(unset)_                      | DeepSeek API key; enables the AI assistant    |
+| `DEEPSEEK_MODEL`            | `deepseek-v4-flash`            | Model name sent to DeepSeek                   |
+| `DEEPSEEK_BASE_URL`         | `https://api.deepseek.com`     | DeepSeek API base URL                         |
+| `DEEPSEEK_TIMEOUT_MS`       | `120000`                       | Upstream AI request timeout in milliseconds   |
 
 Relative project roots resolve from the repository directory. Invalid ports,
 missing roots, non-directory roots, and empty entry-file lists stop startup with
 a concise error.
+
+## AI Assistant
+
+The AI assistant is optional and off until configured. Set `DEEPSEEK_API_KEY`
+in `.env.local` (already git-ignored) and open the app, then click **AI 助手**
+in the header.
+
+- Sending a message transmits the current editor content, including unsaved
+  draft edits, and the conversation history to DeepSeek. The UI shows a
+  first-use privacy notice; sending is disabled until you acknowledge it.
+- Replies stream into the chat window. When the model returns a complete
+  ` ```latex ` code block, an **应用到编辑器** button writes the
+  extracted content into the editor draft. Review it and click **Save**;
+  nothing is written to disk automatically.
+- The API key never leaves the server. Without a key the panel reports that AI
+  is not configured and the rest of the app is unaffected.
+- Chat history is memory-only and clears on reload.
 
 ## Development
 

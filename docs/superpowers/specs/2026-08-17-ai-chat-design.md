@@ -52,12 +52,12 @@ workspace layout is untouched.
 New environment variables, read by `createAppConfig` and validated at
 startup:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DEEPSEEK_API_KEY` | none | DeepSeek API key; required for the AI route |
-| `DEEPSEEK_MODEL` | `deepseek-chat` | Model name sent to DeepSeek |
-| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | API base URL |
-| `DEEPSEEK_TIMEOUT_MS` | `120000` | Upstream request timeout |
+| Variable              | Default                    | Purpose                                     |
+| --------------------- | -------------------------- | ------------------------------------------- |
+| `DEEPSEEK_API_KEY`    | none                       | DeepSeek API key; required for the AI route |
+| `DEEPSEEK_MODEL`      | `deepseek-v4-flash`        | Model name sent to DeepSeek                 |
+| `DEEPSEEK_BASE_URL`   | `https://api.deepseek.com` | API base URL                                |
+| `DEEPSEEK_TIMEOUT_MS` | `120000`                   | Upstream request timeout                    |
 
 `DEEPSEEK_API_KEY` is optional at startup so the app still runs without AI
 configured; the chat route returns `503 AI_NOT_CONFIGURED` in that case. The
@@ -189,12 +189,12 @@ preserved.
 
 ## Error Handling
 
-| Condition | HTTP/event | Code |
-| --- | --- | --- |
-| Invalid request body | SSE error event | `INVALID_REQUEST` |
-| No API key configured | SSE error event | `AI_NOT_CONFIGURED` |
+| Condition                             | HTTP/event      | Code                |
+| ------------------------------------- | --------------- | ------------------- |
+| Invalid request body                  | SSE error event | `INVALID_REQUEST`   |
+| No API key configured                 | SSE error event | `AI_NOT_CONFIGURED` |
 | Upstream HTTP/network/timeout failure | SSE error event | `AI_UPSTREAM_ERROR` |
-| Unexpected server error | SSE error event | `INTERNAL_ERROR` |
+| Unexpected server error               | SSE error event | `INTERNAL_ERROR`    |
 
 Non-SSE routes keep the existing JSON error contract. Error text shown in
 the chat UI is bounded and does not expose the API key or absolute paths.
