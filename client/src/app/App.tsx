@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { AppHeader } from "../components/AppHeader";
+import { AiChatPanel } from "../components/AiChatPanel";
 import { EditorPane } from "../components/EditorPane";
 import { FilePane } from "../components/FilePane";
 import { PaneResizer } from "../components/PaneResizer";
@@ -22,6 +23,7 @@ export function App() {
   const workspace = useWorkspace();
   const { state } = workspace;
   const project = state.project ?? { resumes: [], texFiles: [] };
+  const [aiOpen, setAiOpen] = useState(false);
   const [isFilePaneCollapsed, setIsFilePaneCollapsed] = useState(false);
   const [paneSplit, setPaneSplit] = useState(0.5);
   const workspaceRef = useRef<HTMLElement | null>(null);
@@ -66,8 +68,10 @@ export function App() {
   return (
     <main className="app-shell">
       <AppHeader
+        aiOpen={aiOpen}
         canCompile={selectCanCompile(state)}
         onCompile={workspace.compileSelectedResume}
+        onToggleAi={() => setAiOpen((value) => !value)}
         resumeDirectory={selectedResume?.dir}
       />
       <section
@@ -115,6 +119,13 @@ export function App() {
           resumeId={selectedResume?.id ?? null}
         />
       </section>
+      <AiChatPanel
+        fileContent={openFile?.content ?? ""}
+        filePath={openFile?.path ?? null}
+        onApply={workspace.editCurrentFile}
+        onClose={() => setAiOpen(false)}
+        open={aiOpen}
+      />
     </main>
   );
 }

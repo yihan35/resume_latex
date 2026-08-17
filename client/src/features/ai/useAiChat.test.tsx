@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AiChatStreamEvent } from "../../../shared/contracts";
+import type { AiChatStreamEvent } from "../../../../shared/contracts";
 import type { ApiClient } from "../../lib/apiClient";
 import { useAiChat } from "./useAiChat";
 
@@ -70,10 +70,7 @@ describe("useAiChat", () => {
 
   it("keeps the partial reply when the user stops mid-stream", async () => {
     const api = {
-      chatAi: vi.fn(async function* (
-        _input: unknown,
-        signal?: AbortSignal,
-      ) {
+      chatAi: vi.fn(async function* (_input: unknown, signal?: AbortSignal) {
         let rejectAbort!: (reason?: unknown) => void;
         const aborted = new Promise<void>((_resolve, reject) => {
           rejectAbort = reject;

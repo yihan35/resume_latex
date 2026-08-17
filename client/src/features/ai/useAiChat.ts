@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AiChatMessage } from "../../../shared/contracts";
+import type { AiChatMessage } from "../../../../shared/contracts";
 import { createApiClient, type ApiClient } from "../../lib/apiClient";
 
 export type AiChatStatus = "idle" | "streaming" | "error";

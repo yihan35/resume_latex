@@ -240,4 +240,21 @@ describe("App", () => {
     };
     void pathCompatibility;
   });
+
+  it("toggles the AI assistant panel from the header", async () => {
+    stubProjectFetch();
+
+    render(<App />);
+
+    await screen.findByRole("tree", { name: /tex files/i });
+    expect(screen.queryByRole("heading", { name: "AI 助手" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "AI 助手" }));
+    expect(
+      screen.getByRole("heading", { name: "AI 助手" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /关闭 AI 助手/ }));
+    expect(screen.queryByRole("heading", { name: "AI 助手" })).toBeNull();
+  });
 });
