@@ -11,6 +11,10 @@ export interface AppConfig {
   entryFiles: readonly string[];
   latexCommand: string;
   synctexCommand: string;
+  deepseekApiKey: string;
+  deepseekModel: string;
+  deepseekBaseUrl: string;
+  deepseekTimeoutMs: number;
 }
 
 function parsePort(
@@ -30,6 +34,18 @@ function parsePort(
   }
 
   return port;
+}
+
+function parsePositiveInt(
+  value: string | undefined,
+  fallback: number,
+  variableName: string,
+): number {
+  const source = value?.trim() ?? String(fallback);
+  if (!/^\d+$/.test(source) || Number(source) < 1) {
+    throw new Error(`${variableName} must be a positive integer`);
+  }
+  return Number(source);
 }
 
 function parseEntryFiles(value: string | undefined): readonly string[] {
@@ -85,5 +101,14 @@ export function createAppConfig(options?: {
     entryFiles,
     latexCommand: env.RESUME_LATEX_COMMAND?.trim() || "xelatex",
     synctexCommand: env.RESUME_SYNCTEX_COMMAND?.trim() || "synctex",
+    deepseekApiKey: env.DEEPSEEK_API_KEY?.trim() ?? "",
+    deepseekModel: env.DEEPSEEK_MODEL?.trim() || "deepseek-v4-flash",
+    deepseekBaseUrl:
+      env.DEEPSEEK_BASE_URL?.trim() || "https://api.deepseek.com",
+    deepseekTimeoutMs: parsePositiveInt(
+      env.DEEPSEEK_TIMEOUT_MS,
+      120000,
+      "DEEPSEEK_TIMEOUT_MS",
+    ),
   });
 }

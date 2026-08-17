@@ -43,9 +43,47 @@ describe("createAppConfig", () => {
       entryFiles: ["resume.tex", "main.tex", "简历.tex"],
       latexCommand: "xelatex",
       synctexCommand: "synctex",
+      deepseekApiKey: "",
+      deepseekModel: "deepseek-v4-flash",
+      deepseekBaseUrl: "https://api.deepseek.com",
+      deepseekTimeoutMs: 120000,
     });
     expect(Object.isFrozen(config)).toBe(true);
     expect(Object.isFrozen(config.entryFiles)).toBe(true);
+  });
+
+  it("parses DeepSeek configuration with trimming and defaults", async () => {
+    const cwd = await makeTempRoot();
+    await makeExampleRoot(cwd);
+
+    const config = createAppConfig({
+      cwd,
+      env: {
+        DEEPSEEK_API_KEY: " sk-test ",
+        DEEPSEEK_MODEL: "deepseek-v4-pro",
+        DEEPSEEK_BASE_URL: "https://api.deepseek.com/v1/",
+        DEEPSEEK_TIMEOUT_MS: "30000",
+      },
+    });
+
+    expect(config).toMatchObject({
+      deepseekApiKey: "sk-test",
+      deepseekModel: "deepseek-v4-pro",
+      deepseekBaseUrl: "https://api.deepseek.com/v1/",
+      deepseekTimeoutMs: 30000,
+    });
+  });
+
+  it.each([
+    ["DEEPSEEK_TIMEOUT_MS", "0"],
+    ["DEEPSEEK_TIMEOUT_MS", "invalid"],
+  ])("rejects an invalid DeepSeek timeout value of %s", async (name, value) => {
+    const cwd = await makeTempRoot();
+    await makeExampleRoot(cwd);
+
+    expect(() => createAppConfig({ cwd, env: { [name]: value } })).toThrow(
+      /positive integer/i,
+    );
   });
 
   it("resolves a relative project root and normalizes entry-file priority", async () => {
