@@ -8,9 +8,14 @@ import { createHealthRouter } from "./http/routes/health.js";
 import { createPdfRouter } from "./http/routes/pdf.js";
 import { createProjectRouter } from "./http/routes/project.js";
 import { createSynctexRouter } from "./http/routes/synctex.js";
+import { createAiRouter } from "./http/routes/ai.js";
 import { ApiError, errorStatus, toApiErrorResponse } from "./http/apiError.js";
 import type { AppConfig } from "./config/appConfig.js";
 import { CompileService } from "./domain/compiler.js";
+import {
+  createDeepSeekClient,
+  type DeepSeekClient,
+} from "./domain/deepseek.js";
 import { discoverResumes } from "./domain/discovery.js";
 import {
   createToolAvailabilityChecker,
@@ -23,6 +28,7 @@ export interface AppDependencies {
   compiler?: CompileService;
   commandRunner?: CommandRunner;
   checkToolAvailability?: ToolAvailabilityChecker;
+  deepseek?: DeepSeekClient;
   staticDir?: string;
 }
 
@@ -67,6 +73,18 @@ function createCompiler(dependencies: AppDependencies): CompileService {
   );
 }
 
+function createDeepSeek(dependencies: AppDependencies): DeepSeekClient {
+  return (
+    dependencies.deepseek ??
+    createDeepSeekClient({
+      apiKey: dependencies.config.deepseekApiKey,
+      model: dependencies.config.deepseekModel,
+      baseUrl: dependencies.config.deepseekBaseUrl,
+      timeoutMs: dependencies.config.deepseekTimeoutMs,
+    })
+  );
+}
+
 export function createApp(dependencies: AppDependencies): Express {
   const app = express();
   const { config } = dependencies;
@@ -80,6 +98,7 @@ export function createApp(dependencies: AppDependencies): Express {
         ? {}
         : { runner: dependencies.commandRunner }),
     });
+  const deepseek = createDeepSeek(dependencies);
 
   app.use(express.json({ limit: "1mb" }));
   app.use(
@@ -106,6 +125,12 @@ export function createApp(dependencies: AppDependencies): Express {
       ...(dependencies.commandRunner === undefined
         ? {}
         : { commandRunner: dependencies.commandRunner }),
+    }),
+  );
+  app.use(
+    createAiRouter({
+      apiKey: config.deepseekApiKey,
+      deepseek,
     }),
   );
   app.use("/api", (_request, response) => {

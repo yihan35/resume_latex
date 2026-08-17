@@ -25,6 +25,10 @@ function config(projectRoot: string): AppConfig {
     entryFiles: ["resume.tex"],
     latexCommand: "xelatex",
     synctexCommand: "synctex",
+    deepseekApiKey: "test-key",
+    deepseekModel: "deepseek-v4-flash",
+    deepseekBaseUrl: "https://api.deepseek.com",
+    deepseekTimeoutMs: 5000,
   };
 }
 
