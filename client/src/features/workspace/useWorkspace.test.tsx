@@ -60,6 +60,7 @@ describe("useWorkspace", () => {
           stderr: "",
         };
       }),
+      chatAi: vi.fn(),
       lookupSynctex: vi.fn(),
     };
     const { result } = renderHook(() => useWorkspace({ api }));
@@ -97,6 +98,7 @@ describe("useWorkspace", () => {
       getFile,
       saveFile: vi.fn(),
       compile: vi.fn(),
+      chatAi: vi.fn(),
       lookupSynctex: vi.fn(),
     };
     const { result } = renderHook(() => useWorkspace({ api }));
@@ -133,6 +135,7 @@ describe("useWorkspace", () => {
           }),
       ),
       compile,
+      chatAi: vi.fn(),
       lookupSynctex: vi.fn(),
     };
     const { result } = renderHook(() => useWorkspace({ api }));
@@ -163,6 +166,7 @@ describe("useWorkspace", () => {
       getFile,
       saveFile: vi.fn(),
       compile: vi.fn(),
+      chatAi: vi.fn(),
       lookupSynctex: vi.fn(
         () =>
           new Promise<{ found: true; file: string; line: number }>(
@@ -207,6 +211,7 @@ describe("useWorkspace", () => {
         });
       }),
       compile: vi.fn(),
+      chatAi: vi.fn(),
       lookupSynctex: vi.fn(),
     };
     const { result } = renderHook(() => useWorkspace({ api }));

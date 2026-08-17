@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ApiClientError, createApiClient } from "./apiClient";
+import type { AiChatStreamEvent } from "../../../shared/contracts";
 
 function response(body: unknown, status = 200): Response {
   return {
@@ -95,6 +96,67 @@ describe("createApiClient", () => {
       status: 502,
       code: "INTERNAL_ERROR",
       message: "Request failed with status 502",
+    } satisfies Partial<ApiClientError>);
+  });
+
+  it("streams AI chat events and forwards the abort signal", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(
+          encoder.encode('data: {"type":"delta","text":"你"}\n\n'),
+        );
+        controller.enqueue(encoder.encode('data: {"type":"done"}\n\n'));
+        controller.close();
+      },
+    });
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      body,
+    } as unknown as Response);
+    const api = createApiClient(fetcher);
+    const controller = new AbortController();
+
+    const events: AiChatStreamEvent[] = [];
+    for await (const event of await api.chatAi(
+      { path: "a.tex", content: "% x", messages: [] },
+      controller.signal,
+    )) {
+      events.push(event);
+    }
+
+    expect(events).toEqual([
+      { type: "delta", text: "你" },
+      { type: "done" },
+    ]);
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/ai/chat",
+      expect.objectContaining({ signal: controller.signal }),
+    );
+  });
+
+  it("throws shared error envelopes for failed AI requests", async () => {
+    const api = createApiClient(
+      vi.fn().mockResolvedValue(
+        response(
+          {
+            error: {
+              code: "AI_NOT_CONFIGURED",
+              message: "AI is not configured",
+            },
+          },
+          503,
+        ),
+      ),
+    );
+
+    await expect(
+      api.chatAi({ path: "a.tex", content: "% x", messages: [] }),
+    ).rejects.toMatchObject({
+      name: "ApiClientError",
+      status: 503,
+      code: "AI_NOT_CONFIGURED",
     } satisfies Partial<ApiClientError>);
   });
 });

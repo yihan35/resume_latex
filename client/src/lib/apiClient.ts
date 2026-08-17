@@ -1,4 +1,6 @@
 import type {
+  AiChatRequest,
+  AiChatStreamEvent,
   ApiErrorCode,
   ApiErrorResponse,
   CompileRequest,
@@ -23,6 +25,10 @@ export interface ApiClient {
     input: SynctexRequest,
     signal?: AbortSignal,
   ): Promise<SynctexResult>;
+  chatAi(
+    input: AiChatRequest,
+    signal?: AbortSignal,
+  ): Promise<AsyncIterable<AiChatStreamEvent>>;
 }
 
 export class ApiClientError extends Error {
@@ -46,6 +52,8 @@ const apiErrorCodes = new Set<ApiErrorCode>([
   "SYNCTEX_NOT_FOUND",
   "COMPILE_BUSY",
   "COMPILE_FAILED",
+  "AI_NOT_CONFIGURED",
+  "AI_UPSTREAM_ERROR",
   "INTERNAL_ERROR",
 ]);
 
@@ -113,6 +121,78 @@ function jsonRequest(
   };
 }
 
+async function* sseEvents(
+  response: Response,
+): AsyncGenerator<AiChatStreamEvent> {
+  if (response.body === null) {
+    throw new ApiClientError(
+      response.status,
+      "INTERNAL_ERROR",
+      "Empty AI response",
+    );
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replace(/\r\n/g, "\n");
+      let separator: number;
+      while ((separator = buffer.indexOf("\n\n")) !== -1) {
+        const rawEvent = buffer.slice(0, separator);
+        buffer = buffer.slice(separator + 2);
+        for (const line of rawEvent.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (payload === "") continue;
+          yield JSON.parse(payload) as AiChatStreamEvent;
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+async function chatAi(
+  fetcher: Fetcher,
+  input: AiChatRequest,
+  signal?: AbortSignal,
+): Promise<AsyncIterable<AiChatStreamEvent>> {
+  const response = await fetcher("/api/ai/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    ...(signal === undefined ? {} : { signal }),
+  });
+
+  if (!response.ok) {
+    let body: unknown;
+    try {
+      body = await response.json();
+    } catch {
+      // Fall through to the safe internal error below.
+    }
+    if (isApiErrorResponse(body)) {
+      throw new ApiClientError(
+        response.status,
+        body.error.code,
+        body.error.message,
+      );
+    }
+    throw new ApiClientError(
+      response.status,
+      "INTERNAL_ERROR",
+      `Request failed with status ${response.status}`,
+    );
+  }
+
+  return sseEvents(response);
+}
+
 function signalInit(signal?: AbortSignal): RequestInit | undefined {
   return signal === undefined ? undefined : { signal };
 }
@@ -135,5 +215,6 @@ export function createApiClient(fetcher: Fetcher = fetch): ApiClient {
       requestJson(fetcher, "/api/compile", jsonRequest("POST", input, signal)),
     lookupSynctex: (input, signal) =>
       requestJson(fetcher, "/api/synctex", jsonRequest("POST", input, signal)),
+    chatAi: (input, signal) => chatAi(fetcher, input, signal),
   };
 }
